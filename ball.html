@@ -1,80 +1,296 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>米阔的识字大冒险 - 语音教学版</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <title>方栎的识字大冒险 - 积分挑战版</title>
+    <!-- 引用国内极速源 -->
+    <script src="https://lib.baomitu.com/matter-js/0.19.0/matter.min.js"></script>
     <style>
         /* --- 全局样式 --- */
-        * { box-sizing: border-box; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; outline: none; font-family: "Microsoft YaHei", "Heiti SC", sans-serif; }
-        
+        * {
+            box-sizing: border-box;
+            touch-action: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+            font-family: "Microsoft YaHei", "Heiti SC", sans-serif;
+        }
+
         body {
-            margin: 0; padding: 0;
+            margin: 0;
+            padding: 0;
             background-color: #2c3e50;
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            display: flex; justify-content: center; align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             overflow: hidden;
         }
 
         /* --- 动画 --- */
-        @keyframes shake-y { 0% { transform: translateY(0); } 25% { transform: translateY(-5px); } 50% { transform: translateY(5px); } 75% { transform: translateY(-5px); } 100% { transform: translateY(0); } }
-        @keyframes shake-x { 0% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-5px) rotate(-1deg); } 50% { transform: translateX(5px) rotate(1deg); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
-        .shake-dad { animation: shake-y 0.5s ease-in-out infinite; }
-        .shake-mom { animation: shake-x 0.5s ease-in-out infinite; } /* 加快频率 */
+        @keyframes shake-y {
+            0% {
+                transform: translateY(0);
+            }
+
+            25% {
+                transform: translateY(-5px);
+            }
+
+            50% {
+                transform: translateY(5px);
+            }
+
+            75% {
+                transform: translateY(-5px);
+            }
+
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shake-x {
+            0% {
+                transform: translateX(0) rotate(0);
+            }
+
+            25% {
+                transform: translateX(-5px) rotate(-1deg);
+            }
+
+            50% {
+                transform: translateX(5px) rotate(1deg);
+            }
+
+            75% {
+                transform: translateX(-5px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        /* 按钮不可用的抖动 */
+        @keyframes shake-nope {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        .shake-dad {
+            animation: shake-y 0.5s ease-in-out infinite;
+        }
+
+        .shake-mom {
+            animation: shake-x 0.5s ease-in-out infinite;
+        }
+
+        .nope-anim {
+            animation: shake-nope 0.3s;
+        }
 
         /* --- 掌机外壳 --- */
         #console-body {
-            width: 100%; height: 100%; max-width: 500px;
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
             background: repeating-linear-gradient(45deg, #f1c40f, #f1c40f 10px, #f39c12 10px, #f39c12 20px);
-            border-radius: 0; display: flex; flex-direction: column; padding: 10px; position: relative; border: none;
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            position: relative;
+            border: none;
         }
-        @media (min-width: 500px) { #console-body { border-radius: 12px; border: 4px solid #333; height: 95vh; } }
+
+        @media (min-width: 500px) {
+            #console-body {
+                border-radius: 12px;
+                border: 4px solid #333;
+                height: 95vh;
+            }
+        }
 
         /* 屏幕区域 */
         #screen-bezel {
-            background-color: #222; padding: 6px; border-radius: 10px 10px 30px 10px;
-            flex: 1; display: flex; flex-direction: column; position: relative; margin-bottom: 8px; border: 2px solid #555; min-height: 0;
+            background-color: #222;
+            padding: 6px;
+            border-radius: 10px 10px 30px 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            margin-bottom: 8px;
+            border: 2px solid #555;
+            min-height: 0;
         }
+
         #game-screen {
             background: radial-gradient(circle at center, #2b3a42 0%, #000 100%);
-            width: 100%; height: 100%; border-radius: 4px; position: relative; overflow: hidden; border: 1px solid #444;
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #444;
         }
 
         /* UI */
-        #score-board { position: absolute; top: 10px; left: 10px; color: #f1c40f; font-size: 24px; font-weight: 900; z-index: 10; text-shadow: 2px 2px 0 #000; }
-        #next-ball-panel {
-            position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6);
-            padding: 4px 10px; border-radius: 15px; color: #fff; font-size: 10px;
-            display: flex; flex-direction: column; align-items: center; z-index: 10; border: 1px solid #f1c40f;
+        #score-board {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #f1c40f;
+            font-size: 24px;
+            font-weight: 900;
+            z-index: 10;
+            text-shadow: 2px 2px 0 #000;
         }
-        #next-ball-circle { width: 18px; height: 18px; border-radius: 50%; margin-top: 2px; background: #fff; }
-        #limit-line { position: absolute; top: 100px; width: 100%; border-top: 3px dashed #e74c3c; z-index: 5; opacity: 0.6; pointer-events: none; }
+
+        #next-ball-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 10px;
+            border-radius: 15px;
+            color: #fff;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            border: 1px solid #f1c40f;
+        }
+
+        #next-ball-circle {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            margin-top: 2px;
+            background: #fff;
+        }
+
+        #limit-line {
+            position: absolute;
+            top: 100px;
+            width: 100%;
+            border-top: 3px dashed #e74c3c;
+            z-index: 5;
+            opacity: 0.6;
+            pointer-events: none;
+        }
 
         /* --- 弹窗 --- */
-        #quiz-overlay, #start-overlay {
-            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 200;
-            flex-direction: column; justify-content: center; align-items: center; color: white;
+        #quiz-overlay,
+        #start-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 200;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
         }
-        #start-overlay { display: flex; z-index: 300; }
-        
-        #quiz-box { background: #fff; width: 90%; border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 0 20px #f1c40f; border: 5px solid #3498db; }
-        #quiz-title { font-size: 24px; color: #333; margin-bottom: 15px; font-weight: bold; }
-        #quiz-pinyin { font-size: 60px; color: #e74c3c; font-weight: bold; margin-bottom: 25px; font-family: Arial, sans-serif; display:none; } /* 拼音可以隐藏，主要靠听 */
-        #quiz-icon { font-size: 50px; margin-bottom: 20px; animation: bounce 1s infinite; }
-        
-        #quiz-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
-        .quiz-btn {
-            width: 70px; height: 70px; background: #34495e; color: #fff; border-radius: 15px;
-            font-size: 32px; font-weight: bold; display: flex; justify-content: center; align-items: center; 
-            cursor: pointer; border: none; box-shadow: 0 6px 0 #2c3e50; transition: background 0.1s;
-        }
-        .quiz-btn:active { transform: translateY(4px); box-shadow: none; background: #2980b9; }
-        .quiz-btn.correct-anim { background: #2ecc71 !important; box-shadow: 0 6px 0 #27ae60 !important; }
-        .quiz-btn.wrong-anim { background: #e74c3c !important; animation: shake-x 0.3s; }
 
-        @keyframes bounce { 0%, 100% {transform: translateY(0);} 50% {transform: translateY(-10px);} }
+        #start-overlay {
+            display: flex;
+            z-index: 300;
+        }
+
+        #quiz-box {
+            background: #fff;
+            width: 90%;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 0 20px #f1c40f;
+            border: 5px solid #3498db;
+            position: relative;
+        }
+
+        #quiz-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        /* 喇叭图标 */
+        #quiz-icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            text-shadow: 0 4px 0 #ccc;
+            transition: transform 0.1s;
+        }
+
+        #quiz-icon:active {
+            transform: scale(0.9);
+        }
+
+        #quiz-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .quiz-btn {
+            width: 70px;
+            height: 70px;
+            background: #34495e;
+            color: #fff;
+            border-radius: 15px;
+            font-size: 32px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 6px 0 #2c3e50;
+            transition: background 0.1s;
+        }
+
+        .quiz-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+            background: #2980b9;
+        }
+
+        .quiz-btn.correct-anim {
+            background: #2ecc71 !important;
+            box-shadow: 0 6px 0 #27ae60 !important;
+        }
+
+        .quiz-btn.wrong-anim {
+            background: #e74c3c !important;
+            animation: shake-x 0.3s;
+        }
 
         /* --- 操控区域 --- */
         #controls-area {
@@ -85,420 +301,608 @@
             padding: 5px;
             flex-shrink: 0;
         }
-        
+
         /* 左边 */
-        .d-pad-container { 
-            position: relative; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.15); border-radius: 10px;
-            display: flex; justify-content: center; align-items: center; gap: 20px;
+        .d-pad-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
         }
+
         .btn-arrow {
-            position: relative; width: 75px; height: 75px;
-            background: #444; border-radius: 15px;
+            position: relative;
+            width: 75px;
+            height: 75px;
+            background: #444;
+            border-radius: 15px;
             box-shadow: 0 6px 0 #111;
-            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
         }
-        .btn-arrow:active, .btn-arrow.active { transform: translateY(6px); box-shadow: none; background: #333; }
-        .btn-arrow::after { content: ''; border: 18px solid transparent; }
-        #btn-left::after { border-right-color: #ddd; margin-right: 8px; }
-        #btn-right::after { border-left-color: #ddd; margin-left: 8px; }
+
+        .btn-arrow:active,
+        .btn-arrow.active {
+            transform: translateY(6px);
+            box-shadow: none;
+            background: #333;
+        }
+
+        .btn-arrow::after {
+            content: '';
+            border: 18px solid transparent;
+        }
+
+        #btn-left::after {
+            border-right-color: #ddd;
+            margin-right: 8px;
+        }
+
+        #btn-right::after {
+            border-left-color: #ddd;
+            margin-left: 8px;
+        }
 
         /* 右边 */
-        .skills-container { 
-            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1.2fr; 
-            gap: 8px; padding-bottom: 5px; 
+        .skills-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1.2fr;
+            gap: 8px;
+            padding-bottom: 5px;
         }
+
         .skill-btn {
-            border-radius: 15px; border: none; color: white; font-weight: bold; font-size: 16px;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            box-shadow: 0 5px 0 rgba(0,0,0,0.3); position: relative; overflow: hidden;
-            width: 100%; height: 100%;
+            border-radius: 15px;
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            transition: filter 0.3s;
         }
-        .skill-btn:active { transform: translateY(5px); box-shadow: none; }
-        .skill-btn:disabled { filter: grayscale(1); opacity: 0.7; transform: none; box-shadow: none; background: #555 !important;}
-        
-        #btn-dad { grid-row: 1; grid-column: 1; background: #2980b9; border: 2px solid #5dade2; font-size: 14px;}
-        #btn-mom { grid-row: 1; grid-column: 2; background: #e84393; border: 2px solid #fd79a8; font-size: 14px;}
+
+        .skill-btn:active {
+            transform: translateY(5px);
+            box-shadow: none;
+        }
+
+        /* 技能禁用状态 */
+        .skill-btn.disabled {
+            filter: grayscale(1);
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #555 !important;
+            border-color: #444 !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        /* 技能次数角标 */
+        .skill-count {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #f1c40f;
+            color: #333;
+            font-size: 10px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        #btn-dad {
+            grid-row: 1;
+            grid-column: 1;
+            background: #2980b9;
+            border: 2px solid #5dade2;
+            font-size: 14px;
+        }
+
+        #btn-mom {
+            grid-row: 1;
+            grid-column: 2;
+            background: #e84393;
+            border: 2px solid #fd79a8;
+            font-size: 14px;
+        }
+
         #btn-drop {
-            grid-row: 2; grid-column: 1 / span 2;
-            background: radial-gradient(circle, #e74c3c, #c0392b); border: 3px solid #922b21;
-            font-size: 24px; border-radius: 20px; box-shadow: 0 6px 0 #581610;
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            background: radial-gradient(circle, #e74c3c, #c0392b);
+            border: 3px solid #922b21;
+            font-size: 24px;
+            border-radius: 20px;
+            box-shadow: 0 6px 0 #581610;
         }
-        #btn-drop:active { transform: translateY(6px); box-shadow: none; }
-        
-        .cool-down-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; display: none; }
+
+        #btn-drop:active {
+            transform: translateY(6px);
+            box-shadow: none;
+        }
+
+        .cool-down-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            display: none;
+        }
     </style>
 </head>
+
 <body>
 
-<div id="console-body">
-    <div id="screen-bezel">
-        <div id="game-screen">
-            <div id="score-board">0</div>
-            <div id="next-ball-panel"><span>下个球</span><div id="next-ball-circle"></div></div>
-            <div id="limit-line"></div>
-            
-            <!-- 识字弹窗 -->
-            <div id="quiz-overlay">
-                <div id="quiz-box">
-                    <div id="quiz-icon">🔊</div>
-                    <div id="quiz-title"></div> <!-- 这里显示“请找出...” -->
-                    <div id="quiz-options"></div>
+    <div id="console-body">
+        <div id="screen-bezel">
+            <div id="game-screen">
+                <div id="score-board">0</div>
+                <div id="next-ball-panel"><span>下个球</span>
+                    <div id="next-ball-circle"></div>
+                </div>
+                <div id="limit-line"></div>
+
+                <!-- 识字弹窗 -->
+                <div id="quiz-overlay">
+                    <div id="quiz-box">
+                        <div id="quiz-icon">🔊</div> <!-- 点击重复播放 -->
+                        <div id="quiz-title"></div>
+                        <div id="quiz-options"></div>
+                    </div>
+                </div>
+
+                <div id="start-overlay">
+                    <h1 style="color:#f1c40f; margin-bottom:5px;">方栎识字大冒险</h1>
+                    <p style="color:#aaa; font-size:12px;">Fangyue's Word Adventure</p>
+                    <button id="start-game-btn"
+                        style="margin-top:30px; padding:15px 40px; font-size:22px; background:#2ecc71; border:none; border-radius:30px; color:#fff; font-weight:bold; box-shadow:0 5px 0 #27ae60;">开始挑战</button>
                 </div>
             </div>
+            <div style="text-align:center; color:#555; font-size:10px; margin-top:4px; font-weight:bold;">LI TAO & WANG
+                RONG PRESENTS</div>
+        </div>
 
-            <div id="start-overlay">
-                <h1 style="color:#f1c40f; margin-bottom:5px;">米阔识字大冒险</h1>
-                <p style="color:#aaa; font-size:12px;">Fangyue's Word Adventure</p>
-                <button id="start-game-btn" style="margin-top:30px; padding:15px 40px; font-size:22px; background:#2ecc71; border:none; border-radius:30px; color:#fff; font-weight:bold; box-shadow:0 5px 0 #27ae60;">开始挑战</button>
+        <div id="controls-area">
+            <div class="d-pad-container">
+                <div id="btn-left" class="btn-arrow"></div>
+                <div id="btn-right" class="btn-arrow"></div>
+            </div>
+            <div class="skills-container">
+                <button id="btn-dad" class="skill-btn disabled">
+                    <span>⚡ 爸爸</span>
+                    <div class="skill-count" id="count-dad">0</div>
+                    <div class="cool-down-text" id="cd-dad">0</div>
+                </button>
+                <button id="btn-mom" class="skill-btn disabled">
+                    <span>❤️ 妈妈</span>
+                    <div class="skill-count" id="count-mom">0</div>
+                    <div class="cool-down-text" id="cd-mom">0</div>
+                </button>
+                <button id="btn-drop" class="skill-btn">↓ 落 下 ↓</button>
             </div>
         </div>
-        <div style="text-align:center; color:#555; font-size:10px; margin-top:4px; font-weight:bold;">LI TAO & WANG RONG PRESENTS</div>
     </div>
 
-    <div id="controls-area">
-        <div class="d-pad-container">
-            <div id="btn-left" class="btn-arrow"></div>
-            <div id="btn-right" class="btn-arrow"></div>
-        </div>
-        <div class="skills-container">
-            <button id="btn-dad" class="skill-btn"><span>⚡ 爸爸</span><div class="cool-down-text" id="cd-dad">0</div></button>
-            <button id="btn-mom" class="skill-btn"><span>❤️ 妈妈</span><div class="cool-down-text" id="cd-mom">0</div></button>
-            <button id="btn-drop" class="skill-btn">↓ 落 下 ↓</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    // --- 汉字数据 ---
-    const CHAR_DATA = [
-        {c:'一',p:'yī'}, {c:'二',p:'èr'}, {c:'三',p:'sān'}, {c:'人',p:'rén'}, {c:'个',p:'gè'}, 
-        {c:'大',p:'dà'}, {c:'山',p:'shān'}, {c:'上',p:'shàng'}, {c:'下',p:'xià'}, {c:'小',p:'xiǎo'}, 
-        {c:'雨',p:'yǔ'}, {c:'天',p:'tiān'}, {c:'车',p:'chē'}, {c:'开',p:'kāi'}, {c:'火',p:'huǒ'}, 
-        {c:'门',p:'mén'}, {c:'口',p:'kǒu'}, {c:'月',p:'yuè'}, {c:'羊',p:'yáng'}, {c:'只',p:'zhī'}, 
-        {c:'有',p:'yǒu'}, {c:'牛',p:'niú'}, {c:'水',p:'shuǐ'}, {c:'中',p:'zhōng'}, {c:'风',p:'fēng'}, 
-        {c:'头',p:'tóu'}, {c:'田',p:'tián'}, {c:'土',p:'tǔ'}, {c:'里',p:'lǐ'}, {c:'在',p:'zài'}, 
-        {c:'日',p:'rì'}, {c:'白',p:'bái'}, {c:'马',p:'mǎ'}, {c:'手',p:'shǒu'}, {c:'出',p:'chū'}, 
-        {c:'王',p:'wáng'}, {c:'子',p:'zǐ'}, {c:'儿',p:'ér'}, {c:'了',p:'le'}, {c:'刀',p:'dāo'}, 
-        {c:'伞',p:'sǎn'}, {c:'鸟',p:'niǎo'}, {c:'飞',p:'fēi'}, {c:'气',p:'qì'}, {c:'虫',p:'chóng'}, 
-        {c:'米',p:'mǐ'}, {c:'木',p:'mù'}, {c:'鱼',p:'yú'}, {c:'瓜',p:'guā'}, {c:'云',p:'yún'}, 
-        {c:'电',p:'diàn'}, {c:'石',p:'shí'}, {c:'来',p:'lái'}, {c:'去',p:'qù'}, {c:'玉',p:'yù'}, 
-        {c:'回',p:'huí'}, {c:'多',p:'duō'}, {c:'少',p:'shǎo'}, {c:'问',p:'wèn'}, {c:'早',p:'zǎo'}, 
-        {c:'巴',p:'bā'}, {c:'父',p:'fù'}
-    ];
-
-    const BALL_LEVELS = [
-        { r: 15, color: '#e74c3c', label: '1' }, { r: 20, color: '#3498db', label: '2' },
-        { r: 25, color: '#2ecc71', label: '3' }, { r: 30, color: '#9b59b6', label: '4' },
-        { r: 35, color: '#e67e22', label: '5' }, { r: 40, color: '#1abc9c', label: '6' },
-        { r: 50, color: '#ff7979', label: '妈妈' }, { r: 60, color: '#2980b9', label: '爸爸' }, 
-        { r: 75, color: '#f1c40f', label: '米阔' }, { r: 90, color: '#ecf0f1', label: '全家福' }
-    ];
-
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    let actx = null;
-    const synth = window.speechSynthesis; // 语音合成
-
-    // 朗读函数
-    function speak(text) {
-        if(synth.speaking) synth.cancel();
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = 'zh-CN';
-        utter.rate = 0.9; 
-        utter.pitch = 1.1; 
-        synth.speak(utter);
-    }
-
-    const Sound = {
-        init: () => { if (!actx) actx = new AudioCtx(); if (actx.state==='suspended') actx.resume(); },
-        play: (freq, type, dur) => {
-            if(!actx) return;
-            const o = actx.createOscillator(); const g = actx.createGain();
-            o.type = type; o.frequency.setValueAtTime(freq, actx.currentTime);
-            g.gain.setValueAtTime(0.1, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + dur);
-            o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
-        },
-        correct: () => { Sound.play(800, 'sine', 0.1); setTimeout(()=>Sound.play(1200, 'sine', 0.2), 100); },
-        wrong: () => { Sound.play(150, 'sawtooth', 0.3); },
-        dad: () => { Sound.play(100, 'square', 0.5); },
-        mom: () => { Sound.play(300, 'triangle', 0.5); }
-    };
-
-    const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
-    const engine = Engine.create();
-    const world = engine.world;
-    const screenEl = document.getElementById('game-screen');
-    let width = screenEl.clientWidth;
-    let height = screenEl.clientHeight;
-
-    const render = Render.create({
-        element: screenEl, engine: engine,
-        options: { width, height, background: 'transparent', wireframes: false, pixelRatio: 2 }
-    });
-
-    let ground = Bodies.rectangle(width/2, height + 50, width, 100, { isStatic: true });
-    let leftW = Bodies.rectangle(-30, height/2, 60, height*2, { isStatic: true });
-    let rightW = Bodies.rectangle(width+30, height/2, 60, height*2, { isStatic: true });
-    World.add(world, [ground, leftW, rightW]);
-
-    window.addEventListener('resize', () => {
-        width = screenEl.clientWidth; height = screenEl.clientHeight;
-        render.canvas.width = width * 2; render.canvas.height = height * 2;
-        render.canvas.style.width = width + 'px'; render.canvas.style.height = height + 'px';
-        Body.setPosition(ground, { x: width/2, y: height + 50 });
-        Body.setPosition(rightW, { x: width + 30, y: height/2 });
-        Body.setPosition(leftW, { x: -30, y: height/2 });
-    });
-
-    // 粒子
-    let particles = [];
-    class Particle {
-        constructor(x, y, color) {
-            this.x = x; this.y = y; this.color = color;
-            const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 5 + 3; 
-            this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
-            this.life = 1.0; this.decay = 0.03; this.size = Math.random() * 5 + 2;
-        }
-        update() { this.x += this.vx; this.y += this.vy; this.vy += 0.2; this.life -= this.decay; }
-        draw(ctx) { ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
-    }
-
-    let currentBall = null;
-    let isDropping = false;
-    let nextBallIdx = 0;
-    let score = 0;
-    let isQuizActive = false;
-
-    function createNewBall() {
-        if (isQuizActive) { setTimeout(createNewBall, 500); return; }
-        const idx = nextBallIdx;
-        nextBallIdx = Math.floor(Math.random() * 3);
-        const nextData = BALL_LEVELS[nextBallIdx];
-        const circle = document.getElementById('next-ball-circle');
-        circle.style.backgroundColor = nextData.color;
-        circle.style.boxShadow = `0 0 5px ${nextData.color}`;
-
-        const data = BALL_LEVELS[idx];
-        currentBall = Bodies.circle(width/2, 60, data.r, {
-            label: 'ball', isStatic: true, render: { opacity: 0 }, customIndex: idx, blinkOffset: Math.random()*1000
-        });
-        World.add(world, currentBall);
-        isDropping = false;
-    }
-
-    // --- 识字系统 (语音版) ---
-    let pendingSkill = null;
-    function showQuiz(skillType) {
-        if (isQuizActive) return;
-        isQuizActive = true;
-        pendingSkill = skillType;
-        Sound.init();
-        
-        const target = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
-        const others = [];
-        while(others.length < 4) {
-            const r = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
-            if(r.c !== target.c && !others.includes(r)) others.push(r);
-        }
-        const options = [target, ...others].sort(() => Math.random() - 0.5);
-        
-        // 更新界面
-        document.getElementById('quiz-title').innerText = "请找出: " + target.c;
-        const optContainer = document.getElementById('quiz-options');
-        optContainer.innerHTML = '';
-        
-        options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.className = 'quiz-btn';
-            btn.innerText = opt.c;
-            
-            // 点击汉字时的反馈
-            btn.onclick = () => {
-                // 先读出点击的字
-                speak(opt.c);
-                
-                // 视觉反馈
-                if(opt.c === target.c) {
-                    btn.classList.add('correct-anim');
-                    setTimeout(() => checkAnswer(opt, target), 500); // 等声音读完
-                } else {
-                    btn.classList.add('wrong-anim');
-                    setTimeout(() => btn.classList.remove('wrong-anim'), 300);
-                }
-            };
-            optContainer.appendChild(btn);
-        });
-
-        document.getElementById('quiz-overlay').style.display = 'flex';
-        
-        // 自动朗读题目
-        setTimeout(() => speak("请找出，" + target.c), 500);
-    }
-
-    function checkAnswer(selected, target) {
-        if (selected.c === target.c) {
-            Sound.correct();
-            speak("答对了！");
-            document.getElementById('quiz-overlay').style.display = 'none';
-            isQuizActive = false;
-            activateSkill(pendingSkill);
-        }
-    }
-
-    function activateSkill(type) {
-        const screen = document.getElementById('game-screen');
-        if (type === 'dad') {
-            Sound.dad(); screen.classList.add('shake-dad');
-            setTimeout(() => screen.classList.remove('shake-dad'), 1000);
-            Composite.allBodies(world).forEach(b => { if (!b.isStatic && b.label === 'ball') Body.applyForce(b, b.position, { x: 0, y: -0.08 * b.mass }); });
-            startCooldown('dad', 30);
-        } else if (type === 'mom') {
-            Sound.mom(); screen.classList.add('shake-mom');
-            setTimeout(() => screen.classList.remove('shake-mom'), 1500);
-            let toggle = 1;
-            let shakeInterval = setInterval(() => {
-                // 妈妈力度加强：0.005 -> 0.025
-                Composite.allBodies(world).forEach(b => { if (!b.isStatic && b.label === 'ball') Body.applyForce(b, b.position, { x: toggle * 0.025 * b.mass, y: 0 }); });
-                toggle *= -1;
-            }, 100); // 频率也加快一点
-            setTimeout(() => clearInterval(shakeInterval), 1500);
-            startCooldown('mom', 30);
-        }
-    }
-
-    function startCooldown(type, seconds) {
-        const btnId = type === 'dad' ? 'btn-dad' : 'btn-mom';
-        const cdId = type === 'dad' ? 'cd-dad' : 'cd-mom';
-        const btn = document.getElementById(btnId);
-        const cdText = document.getElementById(cdId);
-        btn.disabled = true; cdText.style.display = 'flex'; cdText.innerText = seconds;
-        let timer = setInterval(() => {
-            seconds--; cdText.innerText = seconds;
-            if (seconds <= 0) { clearInterval(timer); btn.disabled = false; cdText.style.display = 'none'; }
-        }, 1000);
-    }
-
-    // --- 渲染 ---
-    Events.on(render, 'afterRender', () => {
-        const ctx = render.context;
-        const now = Date.now();
-        Composite.allBodies(world).forEach(b => {
-            if (b.label === 'ball') {
-                const { x, y } = b.position;
-                const r = b.circleRadius;
-                const d = BALL_LEVELS[b.customIndex];
-                
-                const g = ctx.createRadialGradient(x-r*0.3, y-r*0.3, r*0.1, x, y, r);
-                g.addColorStop(0, '#fff'); g.addColorStop(0.3, d.color); g.addColorStop(1, '#111');
-                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
-
-                const eyeY = y - r * 0.35; 
-                const eyeOffset = r * 0.25;
-                const eyeR = r * 0.12;
-                const isBlinking = (now + (b.blinkOffset||0)) % 3000 < 150;
-                
-                if (isBlinking) {
-                    ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(x-eyeOffset-eyeR, eyeY); ctx.lineTo(x-eyeOffset+eyeR, eyeY); ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(x+eyeOffset-eyeR, eyeY); ctx.lineTo(x+eyeOffset+eyeR, eyeY); ctx.stroke();
-                } else {
-                    ctx.fillStyle = "white";
-                    ctx.beginPath(); ctx.arc(x-eyeOffset, eyeY, eyeR, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(x+eyeOffset, eyeY, eyeR, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = "black";
-                    ctx.beginPath(); ctx.arc(x-eyeOffset, eyeY, eyeR*0.5, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(x+eyeOffset, eyeY, eyeR*0.5, 0, Math.PI*2); ctx.fill();
-                }
-
-                ctx.fillStyle = '#fff'; ctx.font = `bold ${r*0.5}px Arial`;
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                const textY = y + r * 0.2; 
-                if(d.label === '全家福') ctx.font = `bold ${r*0.25}px Microsoft YaHei`;
-                else if(d.label.length > 1) ctx.font = `bold ${r*0.35}px Microsoft YaHei`;
-                ctx.fillText(d.label, x, textY);
+    <script>
+        // 资源加载检测
+        window.onload = function () {
+            if (typeof Matter === 'undefined') {
+                alert("加载失败，请刷新页面！(Check Internet)");
+                return;
             }
-        });
+            initGame();
+        };
 
-        for(let i = particles.length - 1; i >= 0; i--) {
-            particles[i].update();
-            particles[i].draw(ctx);
-            if(particles[i].life <= 0) particles.splice(i, 1);
-        }
-    });
+        function initGame() {
+            // --- 配置 ---
+            const SKILL_COST = 2000; // 技能消耗
+            const CHAR_DATA = [
+                { c: '一', p: 'yī' }, { c: '二', p: 'èr' }, { c: '三', p: 'sān' }, { c: '人', p: 'rén' }, { c: '个', p: 'gè' },
+                { c: '大', p: 'dà' }, { c: '山', p: 'shān' }, { c: '上', p: 'shàng' }, { c: '下', p: 'xià' }, { c: '小', p: 'xiǎo' },
+                { c: '雨', p: 'yǔ' }, { c: '天', p: 'tiān' }, { c: '车', p: 'chē' }, { c: '开', p: 'kāi' }, { c: '火', p: 'huǒ' },
+                { c: '门', p: 'mén' }, { c: '口', p: 'kǒu' }, { c: '月', p: 'yuè' }, { c: '羊', p: 'yáng' }, { c: '只', p: 'zhī' },
+                { c: '有', p: 'yǒu' }, { c: '牛', p: 'niú' }, { c: '水', p: 'shuǐ' }, { c: '中', p: 'zhōng' }, { c: '风', p: 'fēng' },
+                { c: '头', p: 'tóu' }, { c: '田', p: 'tián' }, { c: '土', p: 'tǔ' }, { c: '里', p: 'lǐ' }, { c: '在', p: 'zài' },
+                { c: '日', p: 'rì' }, { c: '白', p: 'bái' }, { c: '马', p: 'mǎ' }, { c: '手', p: 'shǒu' }, { c: '出', p: 'chū' },
+                { c: '王', p: 'wáng' }, { c: '子', p: 'zǐ' }, { c: '儿', p: 'ér' }, { c: '了', p: 'le' }, { c: '刀', p: 'dāo' },
+                { c: '伞', p: 'sǎn' }, { c: '鸟', p: 'niǎo' }, { c: '飞', p: 'fēi' }, { c: '气', p: 'qì' }, { c: '虫', p: 'chóng' },
+                { c: '米', p: 'mǐ' }, { c: '木', p: 'mù' }, { c: '鱼', p: 'yú' }, { c: '瓜', p: 'guā' }, { c: '云', p: 'yún' },
+                { c: '电', p: 'diàn' }, { c: '石', p: 'shí' }, { c: '来', p: 'lái' }, { c: '去', p: 'qù' }, { c: '玉', p: 'yù' },
+                { c: '回', p: 'huí' }, { c: '多', p: 'duō' }, { c: '少', p: 'shǎo' }, { c: '问', p: 'wèn' }, { c: '早', p: 'zǎo' },
+                { c: '巴', p: 'bā' }, { c: '父', p: 'fù' }
+            ];
 
-    Events.on(engine, 'collisionStart', (e) => {
-        e.pairs.forEach(p => {
-            const { bodyA, bodyB } = p;
-            if (bodyA.label === 'ball' && bodyB.label === 'ball' && bodyA.customIndex === bodyB.customIndex && !bodyA.del && !bodyB.del) {
-                bodyA.del = bodyB.del = true;
-                const newIdx = bodyA.customIndex + 1;
-                Sound.play(300 + newIdx*50, 'sine', 0.1);
-                score += newIdx * 10;
+            const BALL_LEVELS = [
+                { r: 15, color: '#e74c3c', label: '1' }, { r: 20, color: '#3498db', label: '2' },
+                { r: 25, color: '#2ecc71', label: '3' }, { r: 30, color: '#9b59b6', label: '4' },
+                { r: 35, color: '#e67e22', label: '5' }, { r: 40, color: '#1abc9c', label: '6' },
+                { r: 50, color: '#ff7979', label: '妈妈' }, { r: 60, color: '#2980b9', label: '爸爸' },
+                { r: 75, color: '#f1c40f', label: '方栎' }, { r: 90, color: '#ecf0f1', label: '全家福' }
+            ];
+
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            let actx = null;
+            const synth = window.speechSynthesis;
+
+            // 朗读 (rate: 0.6 慢速)
+            function speak(text) {
+                if (!synth) return;
+                if (synth.speaking) synth.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'zh-CN';
+                utter.rate = 0.6; // 语速放慢
+                utter.pitch = 1.1;
+                synth.speak(utter);
+            }
+
+            const Sound = {
+                init: () => { if (!actx) actx = new AudioCtx(); if (actx.state === 'suspended') actx.resume(); },
+                play: (freq, type, dur) => {
+                    if (!actx) return;
+                    const o = actx.createOscillator(); const g = actx.createGain();
+                    o.type = type; o.frequency.setValueAtTime(freq, actx.currentTime);
+                    g.gain.setValueAtTime(0.1, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + dur);
+                    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+                },
+                correct: () => { Sound.play(800, 'sine', 0.1); setTimeout(() => Sound.play(1200, 'sine', 0.2), 100); },
+                wrong: () => { Sound.play(150, 'sawtooth', 0.3); },
+                dad: () => { Sound.play(100, 'square', 0.5); },
+                mom: () => { Sound.play(300, 'triangle', 0.5); },
+                deny: () => { Sound.play(100, 'sawtooth', 0.1); setTimeout(() => Sound.play(100, 'sawtooth', 0.1), 100); } // 拒绝音效
+            };
+
+            const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
+            const engine = Engine.create();
+            const world = engine.world;
+            const screenEl = document.getElementById('game-screen');
+            let width = screenEl.clientWidth;
+            let height = screenEl.clientHeight;
+
+            const render = Render.create({
+                element: screenEl, engine: engine,
+                options: { width, height, background: 'transparent', wireframes: false, pixelRatio: 2 }
+            });
+
+            let ground = Bodies.rectangle(width / 2, height + 50, width, 100, { isStatic: true });
+            let leftW = Bodies.rectangle(-30, height / 2, 60, height * 2, { isStatic: true });
+            let rightW = Bodies.rectangle(width + 30, height / 2, 60, height * 2, { isStatic: true });
+            World.add(world, [ground, leftW, rightW]);
+
+            window.addEventListener('resize', () => {
+                width = screenEl.clientWidth; height = screenEl.clientHeight;
+                render.canvas.width = width * 2; render.canvas.height = height * 2;
+                render.canvas.style.width = width + 'px'; render.canvas.style.height = height + 'px';
+                Body.setPosition(ground, { x: width / 2, y: height + 50 });
+                Body.setPosition(rightW, { x: width + 30, y: height / 2 });
+                Body.setPosition(leftW, { x: -30, y: height / 2 });
+            });
+
+            let particles = [];
+            class Particle {
+                constructor(x, y, color) {
+                    this.x = x; this.y = y; this.color = color;
+                    const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 5 + 3;
+                    this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+                    this.life = 1.0; this.decay = 0.03; this.size = Math.random() * 5 + 2;
+                }
+                update() { this.x += this.vx; this.y += this.vy; this.vy += 0.2; this.life -= this.decay; }
+                draw(ctx) { ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+            }
+
+            let currentBall = null;
+            let isDropping = false;
+            let nextBallIdx = 0;
+            let score = 0;
+            let isQuizActive = false;
+
+            function updateScore(add) {
+                score += add;
                 document.getElementById('score-board').innerText = score;
 
-                const midX = (bodyA.position.x + bodyB.position.x) / 2;
-                const midY = (bodyA.position.y + bodyB.position.y) / 2;
-                const particleColor = newIdx < BALL_LEVELS.length ? BALL_LEVELS[newIdx].color : '#fff';
-                for(let i=0; i<25; i++) {
-                    particles.push(new Particle(midX, midY, particleColor));
-                }
+                // 更新技能按钮状态
+                const uses = Math.floor(score / SKILL_COST);
+                document.getElementById('count-dad').innerText = uses;
+                document.getElementById('count-mom').innerText = uses;
 
-                World.remove(world, [bodyA, bodyB]);
-                if (newIdx < BALL_LEVELS.length) {
-                    const newBall = Bodies.circle(midX, midY, BALL_LEVELS[newIdx].r, {
-                        label: 'ball', restitution: 0.2, render: {opacity:0}, customIndex: newIdx, blinkOffset: Math.random()*1000
-                    });
-                    World.add(world, newBall);
+                const btnDad = document.getElementById('btn-dad');
+                const btnMom = document.getElementById('btn-mom');
+
+                // 如果不在冷却中，根据分数决定是否可用
+                if (!btnDad.classList.contains('cooling')) {
+                    if (score >= SKILL_COST) btnDad.classList.remove('disabled');
+                    else btnDad.classList.add('disabled');
+                }
+                if (!btnMom.classList.contains('cooling')) {
+                    if (score >= SKILL_COST) btnMom.classList.remove('disabled');
+                    else btnMom.classList.add('disabled');
                 }
             }
-        });
-    });
 
-    let moveTimer = null;
-    const moveAction = (dir) => {
-        if(isDropping || isQuizActive || !currentBall) return;
-        const r = currentBall.circleRadius;
-        const step = () => {
-            let nx = currentBall.position.x + dir * 5;
-            nx = Math.max(r+5, Math.min(width-r-5, nx));
-            Body.setPosition(currentBall, {x:nx, y:60});
-        };
-        step(); moveTimer = setInterval(step, 40);
-    };
+            function createNewBall() {
+                if (isQuizActive) { setTimeout(createNewBall, 500); return; }
+                const idx = nextBallIdx;
+                nextBallIdx = Math.floor(Math.random() * 3);
+                const nextData = BALL_LEVELS[nextBallIdx];
+                const circle = document.getElementById('next-ball-circle');
+                circle.style.backgroundColor = nextData.color;
+                circle.style.boxShadow = `0 0 5px ${nextData.color}`;
 
-    ['btn-left', 'btn-right'].forEach(id => {
-        const btn = document.getElementById(id);
-        const dir = id === 'btn-left' ? -1 : 1;
-        const start = (e) => { e.preventDefault(); btn.classList.add('active'); moveAction(dir); };
-        const end = (e) => { if(e)e.preventDefault(); btn.classList.remove('active'); clearInterval(moveTimer); };
-        btn.addEventListener('touchstart', start); btn.addEventListener('mousedown', start);
-        btn.addEventListener('touchend', end); btn.addEventListener('mouseup', end);
-    });
+                const data = BALL_LEVELS[idx];
+                currentBall = Bodies.circle(width / 2, 60, data.r, {
+                    label: 'ball', isStatic: true, render: { opacity: 0 }, customIndex: idx, blinkOffset: Math.random() * 1000
+                });
+                World.add(world, currentBall);
+                isDropping = false;
+            }
 
-    const dropBtn = document.getElementById('btn-drop');
-    const doDrop = (e) => {
-        if(e) e.preventDefault();
-        if(isDropping || isQuizActive || !currentBall) return;
-        Sound.play(400, 'triangle', 0.2);
-        Body.setStatic(currentBall, false);
-        isDropping = true;
-        setTimeout(createNewBall, 250);
-    };
-    dropBtn.addEventListener('touchstart', doDrop); dropBtn.addEventListener('mousedown', doDrop);
+            // --- 识字系统 ---
+            let pendingSkill = null;
+            let currentQuizTarget = null; // 当前要找的字
 
-    document.getElementById('btn-dad').onclick = () => showQuiz('dad');
-    document.getElementById('btn-mom').onclick = () => showQuiz('mom');
-    document.getElementById('start-game-btn').onclick = () => {
-        Sound.init();
-        // 尝试激活语音
-        if(synth) synth.cancel();
-        speak(""); 
-        
-        document.getElementById('start-overlay').style.display = 'none';
-        createNewBall();
-        Render.run(render);
-        Runner.run(Runner.create(), engine);
-    };
-</script>
+            function showQuiz(skillType) {
+                // 积分检查
+                if (score < SKILL_COST) {
+                    Sound.deny();
+                    const btn = document.getElementById('btn-' + skillType);
+                    btn.classList.add('nope-anim');
+                    speak("积分不够哦");
+                    setTimeout(() => btn.classList.remove('nope-anim'), 300);
+                    return;
+                }
+
+                if (isQuizActive) return;
+                isQuizActive = true;
+                pendingSkill = skillType;
+                Sound.init();
+
+                const target = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
+                currentQuizTarget = target; // 记录当前目标以便重播
+
+                const others = [];
+                while (others.length < 4) {
+                    const r = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
+                    if (r.c !== target.c && !others.includes(r)) others.push(r);
+                }
+                const options = [target, ...others].sort(() => Math.random() - 0.5);
+
+                document.getElementById('quiz-title').innerText = "请找出: " + target.c;
+                const optContainer = document.getElementById('quiz-options');
+                optContainer.innerHTML = '';
+
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quiz-btn';
+                    btn.innerText = opt.c;
+                    btn.onclick = () => {
+                        speak(opt.c); // 读出点击的字
+                        if (opt.c === target.c) {
+                            btn.classList.add('correct-anim');
+                            setTimeout(() => checkAnswer(true), 500);
+                        } else {
+                            btn.classList.add('wrong-anim');
+                            setTimeout(() => checkAnswer(false), 500);
+                        }
+                    };
+                    optContainer.appendChild(btn);
+                });
+
+                document.getElementById('quiz-overlay').style.display = 'flex';
+                setTimeout(() => speak("请找出，" + target.c), 500);
+            }
+
+            // 喇叭点击事件：重播
+            document.getElementById('quiz-icon').onclick = () => {
+                if (currentQuizTarget) speak("请找出，" + currentQuizTarget.c);
+            };
+
+            function checkAnswer(isCorrect) {
+                document.getElementById('quiz-overlay').style.display = 'none';
+                isQuizActive = false;
+
+                // 无论对错，都消耗积分
+                updateScore(-SKILL_COST);
+
+                if (isCorrect) {
+                    Sound.correct();
+                    speak("真棒！技能发射");
+                    activateSkill(pendingSkill);
+                } else {
+                    Sound.wrong();
+                    speak("选错了，积分扣除了");
+                }
+            }
+
+            function activateSkill(type) {
+                const screen = document.getElementById('game-screen');
+                if (type === 'dad') {
+                    Sound.dad(); screen.classList.add('shake-dad');
+                    setTimeout(() => screen.classList.remove('shake-dad'), 1000);
+                    Composite.allBodies(world).forEach(b => { if (!b.isStatic && b.label === 'ball') Body.applyForce(b, b.position, { x: 0, y: -0.08 * b.mass }); });
+                    startCooldown('dad', 10);
+                } else if (type === 'mom') {
+                    Sound.mom(); screen.classList.add('shake-mom');
+                    setTimeout(() => screen.classList.remove('shake-mom'), 1500);
+                    let toggle = 1;
+                    let shakeInterval = setInterval(() => {
+                        Composite.allBodies(world).forEach(b => { if (!b.isStatic && b.label === 'ball') Body.applyForce(b, b.position, { x: toggle * 0.025 * b.mass, y: 0 }); });
+                        toggle *= -1;
+                    }, 100);
+                    setTimeout(() => clearInterval(shakeInterval), 1500);
+                    startCooldown('mom', 10);
+                }
+            }
+
+            function startCooldown(type, seconds) {
+                const btnId = type === 'dad' ? 'btn-dad' : 'btn-mom';
+                const cdId = type === 'dad' ? 'cd-dad' : 'cd-mom';
+                const btn = document.getElementById(btnId);
+                const cdText = document.getElementById(cdId);
+
+                btn.classList.add('cooling'); // 标记为冷却中
+                btn.classList.add('disabled'); // 视觉禁用
+
+                cdText.style.display = 'flex'; cdText.innerText = seconds;
+                let timer = setInterval(() => {
+                    seconds--; cdText.innerText = seconds;
+                    if (seconds <= 0) {
+                        clearInterval(timer);
+                        btn.classList.remove('cooling'); // 移除冷却标记
+                        cdText.style.display = 'none';
+                        updateScore(0); // 刷新按钮状态
+                    }
+                }, 1000);
+            }
+
+            Events.on(render, 'afterRender', () => {
+                const ctx = render.context;
+                const now = Date.now();
+                Composite.allBodies(world).forEach(b => {
+                    if (b.label === 'ball') {
+                        const { x, y } = b.position;
+                        const r = b.circleRadius;
+                        const d = BALL_LEVELS[b.customIndex];
+
+                        const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+                        g.addColorStop(0, '#fff'); g.addColorStop(0.3, d.color); g.addColorStop(1, '#111');
+                        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+
+                        const eyeY = y - r * 0.35;
+                        const eyeOffset = r * 0.25;
+                        const eyeR = r * 0.12;
+                        const isBlinking = (now + (b.blinkOffset || 0)) % 3000 < 150;
+
+                        if (isBlinking) {
+                            ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.lineWidth = 2;
+                            ctx.beginPath(); ctx.moveTo(x - eyeOffset - eyeR, eyeY); ctx.lineTo(x - eyeOffset + eyeR, eyeY); ctx.stroke();
+                            ctx.beginPath(); ctx.moveTo(x + eyeOffset - eyeR, eyeY); ctx.lineTo(x + eyeOffset + eyeR, eyeY); ctx.stroke();
+                        } else {
+                            ctx.fillStyle = "white";
+                            ctx.beginPath(); ctx.arc(x - eyeOffset, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+                            ctx.beginPath(); ctx.arc(x + eyeOffset, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+                            ctx.fillStyle = "black";
+                            ctx.beginPath(); ctx.arc(x - eyeOffset, eyeY, eyeR * 0.5, 0, Math.PI * 2); ctx.fill();
+                            ctx.beginPath(); ctx.arc(x + eyeOffset, eyeY, eyeR * 0.5, 0, Math.PI * 2); ctx.fill();
+                        }
+
+                        ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.5}px Arial`;
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        const textY = y + r * 0.2;
+                        if (d.label === '全家福') ctx.font = `bold ${r * 0.25}px Microsoft YaHei`;
+                        else if (d.label.length > 1) ctx.font = `bold ${r * 0.35}px Microsoft YaHei`;
+                        ctx.fillText(d.label, x, textY);
+                    }
+                });
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].draw(ctx);
+                    if (particles[i].life <= 0) particles.splice(i, 1);
+                }
+            });
+
+            Events.on(engine, 'collisionStart', (e) => {
+                e.pairs.forEach(p => {
+                    const { bodyA, bodyB } = p;
+                    if (bodyA.label === 'ball' && bodyB.label === 'ball' && bodyA.customIndex === bodyB.customIndex && !bodyA.del && !bodyB.del) {
+                        bodyA.del = bodyB.del = true;
+                        const newIdx = bodyA.customIndex + 1;
+                        Sound.play(300 + newIdx * 50, 'sine', 0.1);
+
+                        updateScore(newIdx * 10); // 更新分数
+
+                        const midX = (bodyA.position.x + bodyB.position.x) / 2;
+                        const midY = (bodyA.position.y + bodyB.position.y) / 2;
+                        const particleColor = newIdx < BALL_LEVELS.length ? BALL_LEVELS[newIdx].color : '#fff';
+                        for (let i = 0; i < 25; i++) {
+                            particles.push(new Particle(midX, midY, particleColor));
+                        }
+
+                        World.remove(world, [bodyA, bodyB]);
+                        if (newIdx < BALL_LEVELS.length) {
+                            const newBall = Bodies.circle(midX, midY, BALL_LEVELS[newIdx].r, {
+                                label: 'ball', restitution: 0.2, render: { opacity: 0 }, customIndex: newIdx, blinkOffset: Math.random() * 1000
+                            });
+                            World.add(world, newBall);
+                        }
+                    }
+                });
+            });
+
+            let moveTimer = null;
+            const moveAction = (dir) => {
+                if (isDropping || isQuizActive || !currentBall) return;
+                const r = currentBall.circleRadius;
+                const step = () => {
+                    let nx = currentBall.position.x + dir * 5;
+                    nx = Math.max(r + 5, Math.min(width - r - 5, nx));
+                    Body.setPosition(currentBall, { x: nx, y: 60 });
+                };
+                step(); moveTimer = setInterval(step, 40);
+            };
+
+            ['btn-left', 'btn-right'].forEach(id => {
+                const btn = document.getElementById(id);
+                const dir = id === 'btn-left' ? -1 : 1;
+                const start = (e) => { e.preventDefault(); btn.classList.add('active'); moveAction(dir); };
+                const end = (e) => { if (e) e.preventDefault(); btn.classList.remove('active'); clearInterval(moveTimer); };
+                btn.addEventListener('touchstart', start); btn.addEventListener('mousedown', start);
+                btn.addEventListener('touchend', end); btn.addEventListener('mouseup', end);
+            });
+
+            const dropBtn = document.getElementById('btn-drop');
+            const doDrop = (e) => {
+                if (e) e.preventDefault();
+                if (isDropping || isQuizActive || !currentBall) return;
+                Sound.play(400, 'triangle', 0.2);
+                Body.setStatic(currentBall, false);
+                isDropping = true;
+                setTimeout(createNewBall, 250);
+            };
+            dropBtn.addEventListener('touchstart', doDrop); dropBtn.addEventListener('mousedown', doDrop);
+
+            document.getElementById('btn-dad').onclick = () => showQuiz('dad');
+            document.getElementById('btn-mom').onclick = () => showQuiz('mom');
+
+            const startBtn = document.getElementById('start-game-btn');
+            startBtn.onclick = () => {
+                Sound.init();
+                if (synth) synth.cancel();
+                speak("");
+                document.getElementById('start-overlay').style.display = 'none';
+                createNewBall();
+                Render.run(render);
+                Runner.run(Runner.create(), engine);
+            };
+            startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startBtn.click(); });
+        }
+    </script>
 </body>
+
 </html>
