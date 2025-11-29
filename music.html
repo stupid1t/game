@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>音乐节奏大师</title>
+    <style>
+        :root {
+            --bg-color: #8A7BFF;
+            --panel-color: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* 顶部导航 */
+        .header {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            color: white;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+
+        .title {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* 乐器区域 */
+        .stage {
+            flex: 1;
+            background: #fff;
+            border-radius: 24px 24px 0 0;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            overflow-y: auto;
+            align-content: center;
+        }
+
+        .music-btn {
+            aspect-ratio: 1.2;
+            /* 保持宽高比 */
+            border-radius: 20px;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            color: white;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.1s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .music-btn:active,
+        .music-btn.playing {
+            transform: translateY(6px);
+            box-shadow: none;
+            filter: brightness(1.1);
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-bottom: 5px;
+            pointer-events: none;
+        }
+
+        .note-name {
+            font-weight: bold;
+            font-size: 1.2rem;
+            pointer-events: none;
+        }
+
+        /* 底部控制栏 */
+        .controls {
+            background: #fff;
+            padding: 10px 20px 30px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .rhythm-btn {
+            background: #FF4081;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(255, 64, 129, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .rhythm-btn.active {
+            background: #F50057;
+            animation: pulse 0.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(1.05);
+            }
+        }
+
+        /* 点击波纹特效 */
+        .ripple {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-anim 0.4s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-anim {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <button class="back-btn" onclick="history.back()">🏠</button>
+        <span class="title">小小音乐家</span>
+    </div>
+
+    <div class="stage" id="keyboard">
+        <!-- 动态生成按键 -->
+    </div>
+
+    <div class="controls">
+        <button class="rhythm-btn" id="beatBtn" onclick="toggleBeat()">
+            🥁 播放节奏
+        </button>
+    </div>
+
+    <script>
+        // --- 1. 语音模块 (强制普通话) ---
+        const synth = window.speechSynthesis;
+        let preferredVoice = null;
+
+        function loadVoices() {
+            const allVoices = synth.getVoices();
+            let mandarinVoices = allVoices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'zh-cn');
+            if (mandarinVoices.length === 0) mandarinVoices = allVoices.filter(v => v.lang.includes('zh'));
+
+            preferredVoice = mandarinVoices.find(v => v.name.includes('Google') && v.name.includes('Chinese')) ||
+                mandarinVoices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural')) ||
+                mandarinVoices.find(v => v.name.includes('Ting-Ting')) ||
+                mandarinVoices[0];
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utterThis = new SpeechSynthesisUtterance(text);
+            utterThis.lang = 'zh-CN';
+            if (preferredVoice) utterThis.voice = preferredVoice;
+            utterThis.pitch = 1.1; utterThis.rate = 1.0;
+            synth.speak(utterThis);
+        }
+
+        // --- 2. Web Audio API 音频引擎 (核心黑科技) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        // 简单的合成器：播放指定频率
+        function playTone(freq, duration = 0.5) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'sine'; // 正弦波，声音像木琴/玩具钢琴
+            oscillator.frequency.value = freq;
+
+            // 音量包络 (ADSR)
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05); // Attack
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration); // Decay
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        // 合成鼓点声音
+        function playDrum(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            if (type === 'kick') { // 动
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            } else { // 次
+                osc.type = 'triangle'; // 模拟简单的嚓声
+                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            }
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // --- 3. 游戏配置 ---
+        // C大调音阶频率
+        const notes = [
+            { note: 'Do', freq: 261.63, emoji: '🐶', color: '#FF5252' },
+            { note: 'Re', freq: 293.66, emoji: '🐱', color: '#FF9800' },
+            { note: 'Mi', freq: 329.63, emoji: '🐭', color: '#FFC107' },
+            { note: 'Fa', freq: 349.23, emoji: '🐸', color: '#4CAF50' },
+            { note: 'Sol', freq: 392.00, emoji: '🐯', color: '#2196F3' },
+            { note: 'La', freq: 440.00, emoji: '🐰', color: '#3F51B5' },
+            { note: 'Si', freq: 493.88, emoji: '🐼', color: '#9C27B0' },
+            { note: 'Do+', freq: 523.25, emoji: '🦊', color: '#E91E63' }
+        ];
+
+        const keyboard = document.getElementById('keyboard');
+
+        // 初始化键盘
+        notes.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = 'music-btn';
+            btn.style.backgroundColor = item.color;
+            btn.innerHTML = `<div class="emoji">${item.emoji}</div><div class="note-name">${item.note}</div>`;
+
+            // 触摸/点击事件
+            const handleInteract = (e) => {
+                e.preventDefault(); // 防止双击缩放
+                // 视觉反馈
+                createRipple(e, btn);
+                btn.classList.add('playing');
+                setTimeout(() => btn.classList.remove('playing'), 150);
+
+                // 听觉反馈
+                playTone(item.freq);
+
+                // 偶尔语音伴读 (30%概率，避免太吵)
+                // if (Math.random() > 0.7) speak(item.note); 
+            };
+
+            btn.addEventListener('touchstart', handleInteract, { passive: false });
+            btn.addEventListener('mousedown', handleInteract);
+
+            keyboard.appendChild(btn);
+        });
+
+        function createRipple(event, btn) {
+            const circle = document.createElement("span");
+            const diameter = Math.max(btn.clientWidth, btn.clientHeight);
+            const radius = diameter / 2;
+
+            // 简单处理坐标，居中显示波纹
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `0px`;
+            circle.style.top = `0px`;
+            circle.classList.add("ripple");
+
+            // 移除旧波纹
+            const ripple = btn.getElementsByClassName("ripple")[0];
+            if (ripple) ripple.remove();
+
+            btn.appendChild(circle);
+        }
+
+        // --- 4. 节奏机逻辑 ---
+        let beatInterval = null;
+        let beatCount = 0;
+
+        function toggleBeat() {
+            const btn = document.getElementById('beatBtn');
+
+            if (beatInterval) {
+                // 停止
+                clearInterval(beatInterval);
+                beatInterval = null;
+                btn.classList.remove('active');
+                btn.innerHTML = "🥁 播放节奏";
+                speak("休息一下");
+            } else {
+                // 开始 (启动AudioContext)
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                speak("跟着节奏动起来");
+                btn.classList.add('active');
+                btn.innerHTML = "⏹️ 停止";
+
+                // 播放节奏: 动 次 打 次 (每500ms一下)
+                beatCount = 0;
+                playDrum('kick'); // 立即播放第一声
+
+                beatInterval = setInterval(() => {
+                    beatCount++;
+                    if (beatCount % 2 === 0) {
+                        playDrum('kick'); // 强拍
+                    } else {
+                        playDrum('snare'); // 弱拍
+                    }
+                }, 500);
+            }
+        }
+    </script>
+</body>
+
+</html>

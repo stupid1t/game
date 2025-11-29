@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>故事王国 - 沉浸式3D绘本</title>
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* UI 层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            /* 让点击穿透到 Canvas */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .header {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        /* 故事文本显示区 */
+        .story-text-box {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s;
+            pointer-events: auto;
+        }
+
+        /* 底部控制栏 */
+        .controls {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            pointer-events: auto;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+        }
+
+        .ctrl-btn {
+            background: #8A7BFF;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(138, 123, 255, 0.4);
+            cursor: pointer;
+        }
+
+        /* 故事列表抽屉 */
+        #story-list {
+            position: absolute;
+            top: 60px;
+            right: -300px;
+            /* 默认隐藏 */
+            width: 250px;
+            height: 70%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px 0 0 20px;
+            overflow-y: auto;
+            transition: right 0.3s;
+            pointer-events: auto;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            padding: 10px;
+        }
+
+        #story-list.open {
+            right: 0;
+        }
+
+        .story-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .story-item:hover {
+            background: #f0f0ff;
+        }
+
+        .story-item.active {
+            background: #8A7BFF;
+            color: white;
+        }
+
+        #list-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 3D 渲染容器 -->
+    <div id="canvas-container"></div>
+
+    <!-- UI 层 -->
+    <div id="ui-layer">
+        <div class="header">
+            <button class="back-btn" onclick="history.back()">🏠</button>
+            <button id="list-toggle" onclick="toggleList()">📖 故事目录</button>
+        </div>
+
+        <div id="story-list">
+            <!-- JS生成列表 -->
+        </div>
+
+        <div style="flex:1"></div> <!-- 占位 -->
+
+        <div class="story-text-box" id="caption">
+            点击“播放”开始听故事吧...
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn" onclick="prevStory()">⏮️ 上一个</button>
+            <button class="ctrl-btn" id="play-btn" onclick="togglePlay()">▶️ 播放</button>
+            <button class="ctrl-btn" onclick="nextStory()">下一个 ⏭️</button>
+        </div>
+    </div>
+
+    <script>
+        // ==============================
+        // 1. 故事数据 (30个故事，带场景配置)
+        // ==============================
+        const stories = [
+            // --- 森林系列 ---
+            { title: "小兔子找朋友", icon: "🐰", theme: "forest", text: "森林里住着一只小白兔，它很孤单。有一天，它出门去找朋友。它遇到了一只小松鼠，松鼠给了它一颗松果。它们成为了好朋友。" },
+            { title: "聪明的乌鸦", icon: "🦅", theme: "forest", text: "一只乌鸦口渴了，到处找水喝。它发现一个瓶子，但水太少喝不到。乌鸦把小石子一颗颗丢进瓶子里，水面升高了，乌鸦喝到了水。" },
+            { title: "龟兔赛跑", icon: "🐢", theme: "forest", text: "兔子嘲笑乌龟爬得慢，它们决定比赛。兔子跑得快，在半路睡着了。乌龟不停地爬，最后赢得了比赛。" },
+            { title: "狮子和老鼠", icon: "🦁", theme: "forest", text: "小老鼠吵醒了狮子，狮子放了它。后来狮子被网困住了，小老鼠咬破了网，救了狮子。" },
+            { title: "小熊吃蜂蜜", icon: "🐻", theme: "forest", text: "小熊最爱吃蜂蜜。它爬上树，蜜蜂嗡嗡叫。小熊虽然被叮了个包，但吃到了甜甜的蜂蜜，心里美滋滋的。" },
+            { title: "大树的烦恼", icon: "🌳", theme: "forest", text: "大树觉得自己太高了，没人陪它玩。小鸟飞来了，在它身上筑巢唱歌。大树不再孤单了。" },
+            { title: "蘑菇房子", icon: "🍄", theme: "forest", text: "下雨了，小蚂蚁躲在蘑菇下。蝴蝶也来了，蜜蜂也来了。蘑菇像一把大伞，保护了大家。" },
+            { title: "萤火虫的灯", icon: "💡", theme: "night_forest", text: "晚上了，森林黑漆漆的。小萤火虫点亮了小灯笼，为大家照亮回家的路。" },
+
+            // --- 海洋系列 ---
+            { title: "小丑鱼迷路了", icon: "🐠", theme: "ocean", text: "大海蓝蓝的，小丑鱼游啊游，找不到妈妈了。海龟爷爷告诉它，沿着珊瑚礁游就能回家。" },
+            { title: "鲸鱼喷水", icon: "🐳", theme: "ocean", text: "大鲸鱼浮出水面，喷出一道高高的水柱。小鱼们在水柱下洗澡，开心极了。" },
+            { title: "海星跳舞", icon: "⭐", theme: "ocean", text: "海底举行舞会。海星伸展着五个角，在沙滩上转圈圈。螃蟹挥动钳子为它伴奏。" },
+            { title: "章鱼画家", icon: "🐙", theme: "ocean", text: "章鱼有八只手，它同时拿八支画笔。一会儿就画出了五颜六色的海底世界。" },
+            { title: "潜水艇探险", icon: "🛥️", theme: "ocean", text: "黄色的潜水艇潜入深海。它看到了发光的水母，还有巨大的沉船宝藏。" },
+            { title: "海豚救人", icon: "🐬", theme: "ocean", text: "小船翻了，海豚游过来，把落水的人顶出水面，送到了岸边。海豚是人类的好朋友。" },
+            { title: "贝壳的秘密", icon: "🐚", theme: "ocean", text: "小红捡到一个海螺，放在耳边听。哇，里面有大海呼呼的声音，那是大海在唱歌。" },
+
+            // --- 天空与太空 ---
+            { title: "想飞的企鹅", icon: "🐧", theme: "snow", text: "企鹅有翅膀但不会飞。它看着海鸥在飞，很羡慕。后来它跳进水里，发现自己在水里飞得比谁都快。" },
+            { title: "月亮船", icon: "🌙", theme: "night_sky", text: "弯弯的月亮像小船。星星是乘客。云朵是海浪。梦里的宝宝坐上月亮船，飞到了银河系。" },
+            { title: "太阳公公", icon: "☀️", theme: "sky", text: "早晨，太阳公公起床了，公鸡喔喔叫。太阳把光洒在草地上，小花都开了。" },
+            { title: "彩虹桥", icon: "🌈", theme: "sky", text: "雨停了，天上出现了一座七彩的桥。小白兔想爬上去，看看云朵上面有什么。" },
+            { title: "火箭升空", icon: "🚀", theme: "space", text: "3，2，1，发射！火箭喷着火，飞向太空。宇航员叔叔在太空里飘来飘去，像超人一样。" },
+            { title: "摘星星", icon: "✨", theme: "night_sky", text: "小猫想摘星星。它爬上梯子，还是够不着。星星掉进水盆里，小猫开心地笑了。" },
+            { title: "外星人", icon: "👽", theme: "space", text: "飞碟降落在草地上，走出一个绿色的小外星人。它送给小朋友一朵发光的花。" },
+
+            // --- 生活与农场 ---
+            { title: "小猪盖房子", icon: "🐷", theme: "farm", text: "三只小猪盖房子。稻草房倒了，木头房倒了。只有砖头房子最结实，大灰狼吹不倒。" },
+            { title: "贪吃的小狗", icon: "🐶", theme: "farm", text: "小狗看到水里也有一块肉，它想去抢，结果嘴里的肉掉进了河里。它伤心地哭了。" },
+            { title: "勤劳的蜜蜂", icon: "🐝", theme: "farm", text: "春天来了，小蜜蜂飞到花丛中采蜜。它告诉蝴蝶：别贪玩了，快来工作吧。" },
+            { title: "雪人不见了", icon: "⛄", theme: "snow", text: "冬天堆的大雪人，有着红鼻子。太阳出来了，雪人慢慢变小，最后变成了一滩水。" },
+            { title: "勇敢的消防车", icon: "🚒", theme: "city", text: "哪里着火了，消防车就呜呜呜地赶过去。水枪喷出大水，把火扑灭了。" },
+            { title: "晚安，小宝贝", icon: "🛌", theme: "night_room", text: "月亮睡着了，小鸟睡着了。宝宝闭上眼睛，听妈妈讲故事，做个甜甜的梦。" },
+            { title: "生日蛋糕", icon: "🎂", theme: "room", text: "今天是宝宝的生日。点上蜡烛，许个愿望。大家一起唱生日歌，祝你生日快乐！" },
+            { title: "快乐的校车", icon: "🚌", theme: "city", text: "黄色的校车滴滴滴。接上小鸭、小猫和小猪，大家一起开开心心去上学。" }
+        ];
+
+        // ==============================
+        // 2. Three.js 场景引擎
+        // ==============================
+        let scene, camera, renderer;
+        let actors = []; // 存放当前的物体
+        let particles; // 粒子系统
+        let currentTheme = '';
+        let frameId;
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+
+            // 场景
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x1a1a2e, 10, 50); // 雾效增加深邃感
+
+            // 相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 0, 0);
+
+            // 渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // 灯光
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            // 地面 (一个巨大的圆盘)
+            const geometry = new THREE.CircleGeometry(20, 32);
+            const material = new THREE.MeshLambertMaterial({ color: 0x228B22 }); // 默认草地绿
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -2;
+            ground.name = 'ground';
+            scene.add(ground);
+
+            animate();
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        // 动画循环
+        function animate() {
+            frameId = requestAnimationFrame(animate);
+
+            // 摄像机缓慢旋转，增加动态感
+            const time = Date.now() * 0.0005;
+            camera.position.x = Math.sin(time) * 10;
+            camera.position.z = Math.cos(time) * 10;
+            camera.lookAt(0, 0, 0);
+
+            // 粒子运动
+            if (particles) {
+                particles.rotation.y += 0.002;
+            }
+
+            // 角色简单动画 (浮动/跳跃)
+            actors.forEach((actor, idx) => {
+                actor.position.y = Math.sin(time * 2 + idx) * 0.5; // 上下浮动
+                actor.rotation.y += 0.01;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ==============================
+        // 3. 场景生成器 (The Magic)
+        // ==============================
+
+        // 这是一个简单的“工厂”，根据主题改变环境
+        function setTheme(theme) {
+            if (currentTheme === theme) return;
+            currentTheme = theme;
+
+            const ground = scene.getObjectByName('ground');
+
+            // 移除旧粒子
+            if (particles) {
+                scene.remove(particles);
+                particles = null;
+            }
+
+            // 设置背景色和地面色
+            let bgColor, groundColor, particleType;
+
+            switch (theme) {
+                case 'forest':
+                    bgColor = 0x87CEEB; groundColor = 0x4CAF50; particleType = 'leaf';
+                    break;
+                case 'night_forest':
+                    bgColor = 0x0f0f1a; groundColor = 0x1a2f1a; particleType = 'firefly';
+                    break;
+                case 'ocean':
+                    bgColor = 0x1E90FF; groundColor = 0x000080; particleType = 'bubble';
+                    break;
+                case 'snow':
+                    bgColor = 0xCFD8DC; groundColor = 0xffffff; particleType = 'snow';
+                    break;
+                case 'space':
+                case 'night_sky':
+                    bgColor = 0x000000; groundColor = 0x111111; particleType = 'star';
+                    break;
+                case 'farm':
+                    bgColor = 0xFFECB3; groundColor = 0x8D6E63; particleType = 'cloud';
+                    break;
+                default:
+                    bgColor = 0x87CEEB; groundColor = 0x90A4AE;
+            }
+
+            scene.background = new THREE.Color(bgColor);
+            scene.fog.color.setHex(bgColor);
+            ground.material.color.setHex(groundColor);
+
+            createParticles(particleType);
+        }
+
+        // 创建环境粒子
+        function createParticles(type) {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const count = (type === 'star' || type === 'snow') ? 1000 : 200;
+
+            for (let i = 0; i < count; i++) {
+                const x = (Math.random() - 0.5) * 30;
+                const y = (Math.random() - 0.5) * 30;
+                const z = (Math.random() - 0.5) * 30;
+                vertices.push(x, y, z);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+            let color = 0xffffff;
+            let size = 0.2;
+
+            if (type === 'firefly') { color = 0xffff00; size = 0.15; }
+            if (type === 'bubble') { color = 0x88ccff; size = 0.3; }
+            if (type === 'leaf') { color = 0x4caf50; size = 0.2; }
+
+            const material = new THREE.PointsMaterial({ color: color, size: size, transparent: true, opacity: 0.8 });
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        // 简单的程序化几何体生成 (代替复杂模型)
+        function createActorShape(keyword) {
+            const group = new THREE.Group();
+            let mesh;
+
+            // 根据关键词生成简单的组合
+            // 这是一种抽象艺术：用几何体暗示物体
+            if (keyword.includes('兔') || keyword.includes('雪人')) {
+                // 白色球体组合
+                const body = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+                head.position.y = 1.2;
+                group.add(body, head);
+            } else if (keyword.includes('狮') || keyword.includes('太阳') || keyword.includes('花')) {
+                // 黄色放射状
+                const core = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshLambertMaterial({ color: 0xFFD700 }));
+                group.add(core);
+            } else if (keyword.includes('鱼') || keyword.includes('鲸') || keyword.includes('海')) {
+                // 蓝色梭形
+                const body = new THREE.Mesh(new THREE.ConeGeometry(0.8, 2, 16), new THREE.MeshLambertMaterial({ color: 0x00BFFF }));
+                body.rotation.z = Math.PI / 2;
+                group.add(body);
+            } else if (keyword.includes('树') || keyword.includes('草')) {
+                // 绿色圆锥
+                const tree = new THREE.Mesh(new THREE.ConeGeometry(1, 3, 16), new THREE.MeshLambertMaterial({ color: 0x2E7D32 }));
+                tree.position.y = 1.5;
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshLambertMaterial({ color: 0x5D4037 }));
+                group.add(tree, trunk);
+            } else if (keyword.includes('房子') || keyword.includes('车')) {
+                // 彩色立方体
+                const box = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff }));
+                group.add(box);
+            } else {
+                // 默认：随机颜色的八面体
+                mesh = new THREE.Mesh(new THREE.OctahedronGeometry(1), new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff }));
+                group.add(mesh);
+            }
+
+            return group;
+        }
+
+        // 更新场景中的主角
+        function updateStage(story) {
+            // 清除旧演员
+            actors.forEach(a => scene.remove(a));
+            actors = [];
+
+            setTheme(story.theme);
+
+            // 根据故事标题的关键词，生成 3-5 个随机位置的几何体演员
+            const count = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < count; i++) {
+                const actor = createActorShape(story.title + story.text); // 把文本传进去作为种子
+
+                // 随机分布在圆盘上
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 5;
+                actor.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+
+                // 稍微抬高一点
+                actor.position.y = 0.5;
+
+                scene.add(actor);
+                actors.push(actor);
+            }
+        }
+
+        // ==============================
+        // 4. 逻辑与控制
+        // ==============================
+        let currentIndex = 0;
+        let isPlaying = false;
+
+        // 语音配置 (复用之前的强力逻辑)
+        const synth = window.speechSynthesis;
+        let preferredVoice = null;
+
+        function loadVoices() {
+            const allVoices = synth.getVoices();
+            let mandarinVoices = allVoices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'zh-cn');
+            if (mandarinVoices.length === 0) mandarinVoices = allVoices.filter(v => v.lang.includes('zh'));
+            preferredVoice = mandarinVoices.find(v => v.name.includes('Google') && v.name.includes('Chinese')) ||
+                mandarinVoices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural')) ||
+                mandarinVoices.find(v => v.name.includes('Ting-Ting')) ||
+                mandarinVoices[0];
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function speak(text, callback) {
+            if (synth.speaking) synth.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'zh-CN';
+            if (preferredVoice) u.voice = preferredVoice;
+            u.rate = 0.9; u.pitch = 1;
+            u.onend = () => { if (callback) callback(); };
+            synth.speak(u);
+        }
+
+        function playStory(index) {
+            if (index < 0) index = stories.length - 1;
+            if (index >= stories.length) index = 0;
+            currentIndex = index;
+
+            const story = stories[index];
+
+            // UI 更新
+            document.getElementById('caption').innerText = story.text;
+            updateListUI();
+
+            // 3D 场景更新
+            updateStage(story);
+
+            // 播放
+            isPlaying = true;
+            document.getElementById('play-btn').innerText = "⏸️ 暂停";
+
+            speak(story.title + "。" + story.text, () => {
+                // 读完后的回调
+                isPlaying = false;
+                document.getElementById('play-btn').innerText = "🔄 重播";
+                // 自动把“下一个”按钮高亮一下提示
+                const nextBtn = document.querySelectorAll('.ctrl-btn')[2];
+                nextBtn.style.transform = "scale(1.2)";
+                setTimeout(() => nextBtn.style.transform = "scale(1)", 500);
+            });
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                synth.cancel();
+                isPlaying = false;
+                document.getElementById('play-btn').innerText = "▶️ 继续";
+            } else {
+                playStory(currentIndex);
+            }
+        }
+
+        function nextStory() { playStory(currentIndex + 1); }
+        function prevStory() { playStory(currentIndex - 1); }
+
+        // 列表 UI
+        function initList() {
+            const list = document.getElementById('story-list');
+            stories.forEach((s, i) => {
+                const div = document.createElement('div');
+                div.className = 'story-item';
+                div.innerHTML = `<span style="font-size:1.5em">${s.icon}</span> <span>${s.title}</span>`;
+                div.onclick = () => {
+                    playStory(i);
+                    toggleList(); // 选完自动收起
+                };
+                list.appendChild(div);
+            });
+        }
+
+        function updateListUI() {
+            const items = document.querySelectorAll('.story-item');
+            items.forEach((item, i) => {
+                if (i === currentIndex) item.classList.add('active');
+                else item.classList.remove('active');
+            });
+        }
+
+        function toggleList() {
+            document.getElementById('story-list').classList.toggle('open');
+        }
+
+        // 启动
+        init3D();
+        initList();
+
+    </script>
+</body>
+
+</html>

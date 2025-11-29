@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>拼图挑战</title>
+    <style>
+        :root {
+            --bg-color: #A5D6A7;
+            /* 柔和的绿色背景 */
+            --panel-color: #ffffff;
+            --primary-color: #4CAF50;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 顶部导航 */
+        .header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #2E7D32;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.5);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .level-badge {
+            background: rgba(255, 255, 255, 0.6);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        /* 游戏主区域 */
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* 目标提示图 (小图) */
+        .preview-box {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .preview-label {
+            position: absolute;
+            bottom: -25px;
+            font-size: 1rem;
+            color: #1B5E20;
+            font-weight: bold;
+        }
+
+        .preview-img {
+            width: 80%;
+            height: 80%;
+            object-fit: contain;
+            font-size: 60px;
+            /* 如果图片加载失败，显示Emoji */
+            text-align: center;
+            line-height: 80px;
+        }
+
+        /* 拼图区域 */
+        .puzzle-board {
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 5px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* 2x2 网格 */
+            grid-template-rows: repeat(2, 1fr);
+            gap: 5px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .puzzle-piece {
+            background-size: 300px 300px;
+            /* 关键：背景图尺寸等于拼图总尺寸 */
+            background-repeat: no-repeat;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            background-color: white;
+        }
+
+        /* 选中状态 */
+        .puzzle-piece.selected {
+            border: 3px solid #FF5252;
+            transform: scale(0.95);
+            box-shadow: 0 0 15px rgba(255, 82, 82, 0.6);
+            z-index: 10;
+        }
+
+        /* 成功过关后的遮罩 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+            display: none;
+            /* 默认隐藏 */
+            animation: fadeIn 0.5s;
+        }
+
+        .success-card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .next-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            margin-top: 20px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #2E7D32;
+        }
+
+        .next-btn:active {
+            transform: translateY(5px);
+            box-shadow: none;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0);
+            }
+
+            to {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* 隐藏的Canvas，用于生成图片 */
+        #generator-canvas {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <button class="back-btn" onclick="history.back()">🏠</button>
+        <div class="level-badge" id="level-display">第 1 关</div>
+    </div>
+
+    <div class="game-container">
+        <!-- 预览图 -->
+        <div class="preview-box">
+            <img id="preview-img" class="preview-img" src="" alt="目标">
+            <span class="preview-label" id="target-name">...</span>
+        </div>
+
+        <!-- 拼图操作区 -->
+        <div class="puzzle-board" id="board">
+            <!-- 动态生成 4 个方块 -->
+        </div>
+
+        <p style="color: #1B5E20; opacity: 0.8; font-size: 0.9rem;">
+            👆 点击两块拼图交换位置
+        </p>
+    </div>
+
+    <!-- 过关弹窗 -->
+    <div class="overlay" id="success-overlay">
+        <div class="success-card">
+            <div style="font-size: 60px;">🎉</div>
+            <h2 style="color:#2E7D32; margin:10px 0;">拼好啦！</h2>
+            <button class="next-btn" onclick="nextLevel()">下一关 ➡️</button>
+        </div>
+    </div>
+
+    <!-- 用于绘图的画布 -->
+    <canvas id="generator-canvas" width="300" height="300"></canvas>
+
+    <script>
+        // --- 1. 关卡数据 (36个关卡，Emoji + 背景色 + 中文名) ---
+        const levels = [
+            { icon: '🦁', color: '#FFE082', name: '狮子' },
+            { icon: '🚗', color: '#90CAF9', name: '小汽车' },
+            { icon: '🚀', color: '#B39DDB', name: '火箭' },
+            { icon: '🎂', color: '#F48FB1', name: '蛋糕' },
+            { icon: '🐘', color: '#CFD8DC', name: '大象' },
+            { icon: '🦖', color: '#A5D6A7', name: '恐龙' },
+            { icon: '🚑', color: '#FFCCBC', name: '救护车' },
+            { icon: '🏰', color: '#FFF59D', name: '城堡' },
+            { icon: '🐶', color: '#D7CCC8', name: '小狗' },
+            { icon: '🐱', color: '#FFE0B2', name: '小猫' },
+            { icon: '🐢', color: '#C8E6C9', name: '乌龟' },
+            { icon: '🚒', color: '#FFAB91', name: '消防车' },
+            { icon: '🚁', color: '#81D4FA', name: '直升机' },
+            { icon: '🐼', color: '#E0E0E0', name: '熊猫' },
+            { icon: '🦄', color: '#E1BEE7', name: '独角兽' },
+            { icon: '⛄', color: '#B2EBF2', name: '雪人' },
+            { icon: '🍟', color: '#FFD54F', name: '薯条' },
+            { icon: '🍩', color: '#F8BBD0', name: '甜甜圈' },
+            { icon: '🚂', color: '#B0BEC5', name: '火车' },
+            { icon: '⚽', color: '#BDBDBD', name: '足球' },
+            { icon: '🚲', color: '#A1887F', name: '自行车' },
+            { icon: '⏰', color: '#FFAB40', name: '闹钟' },
+            { icon: '🎁', color: '#EF9A9A', name: '礼物' },
+            { icon: '🌻', color: '#FFF176', name: '向日葵' },
+            { icon: '🍦', color: '#80DEEA', name: '冰淇淋' },
+            { icon: '🐳', color: '#64B5F6', name: '鲸鱼' },
+            { icon: '🦋', color: '#CE93D8', name: '蝴蝶' },
+            { icon: '🏠', color: '#DACE25', name: '房子' },
+            { icon: '👑', color: '#FFD740', name: '皇冠' },
+            { icon: '🎸', color: '#FF8A65', name: '吉他' },
+            { icon: '🧸', color: '#BCAAA4', name: '玩具熊' },
+            { icon: '🎡', color: '#9FA8DA', name: '摩天轮' },
+            { icon: '🍔', color: '#FFCC80', name: '汉堡包' },
+            { icon: '🍕', color: '#FFAB91', name: '披萨' },
+            { icon: '🤖', color: '#90A4AE', name: '机器人' },
+            { icon: '👽', color: '#C5E1A5', name: '外星人' }
+        ];
+
+        // --- 2. 语音模块 (强制普通话) ---
+        const synth = window.speechSynthesis;
+        let preferredVoice = null;
+
+        function loadVoices() {
+            const allVoices = synth.getVoices();
+            let mandarinVoices = allVoices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'zh-cn');
+            if (mandarinVoices.length === 0) mandarinVoices = allVoices.filter(v => v.lang.includes('zh'));
+            preferredVoice = mandarinVoices.find(v => v.name.includes('Google') && v.name.includes('Chinese')) ||
+                mandarinVoices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural')) ||
+                mandarinVoices.find(v => v.name.includes('Ting-Ting')) ||
+                mandarinVoices[0];
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utterThis = new SpeechSynthesisUtterance(text);
+            utterThis.lang = 'zh-CN';
+            if (preferredVoice) utterThis.voice = preferredVoice;
+            utterThis.pitch = 1.1; utterThis.rate = 1.0;
+            synth.speak(utterThis);
+        }
+
+        // --- 3. 游戏核心逻辑 ---
+        let currentLevelIndex = 0;
+        let selectedPiece = null;
+        let isAnimating = false;
+        let generatedImageUrl = '';
+
+        const board = document.getElementById('board');
+        const canvas = document.getElementById('generator-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 生成图片并启动关卡
+        function initLevel(index) {
+            document.getElementById('success-overlay').style.display = 'none';
+            document.getElementById('level-display').innerText = `第 ${index + 1} 关`;
+
+            // 循环玩
+            const levelData = levels[index % levels.length];
+
+            document.getElementById('target-name').innerText = levelData.name;
+
+            // 1. 在 Canvas 上绘制 Emoji 图片
+            ctx.fillStyle = levelData.color;
+            ctx.fillRect(0, 0, 300, 300); // 背景
+
+            // 增加一些装饰圆点，让拼图更有纹理，方便辨认方向
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath(); ctx.arc(30, 30, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(270, 270, 20, 0, Math.PI * 2); ctx.fill();
+
+            // 绘制 Emoji
+            ctx.font = "180px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(levelData.icon, 150, 160);
+
+            // 导出为图片 URL
+            generatedImageUrl = canvas.toDataURL("image/png");
+            document.getElementById('preview-img').src = generatedImageUrl;
+
+            speak(`拼一个${levelData.name}`);
+
+            // 2. 创建拼图块
+            createPuzzlePieces();
+        }
+
+        function createPuzzlePieces() {
+            board.innerHTML = '';
+            selectedPiece = null;
+
+            // 2x2 网格，标准位置是 0,1,2,3
+            // 0: 左上, 1: 右上, 2: 左下, 3: 右下
+            let pieces = [0, 1, 2, 3];
+
+            // 随机打乱，直到它不是原始顺序
+            do {
+                pieces.sort(() => Math.random() - 0.5);
+            } while (isSolved(pieces));
+
+            // 渲染方块
+            pieces.forEach((posIndex, domIndex) => {
+                const div = document.createElement('div');
+                div.className = 'puzzle-piece';
+                div.style.backgroundImage = `url(${generatedImageUrl})`;
+
+                // 计算背景偏移量 (切割图片)
+                // posIndex 是这块图本来应该在的位置
+                // 0 (0,0) | 1 (-150, 0)
+                // 2 (0,-150)| 3 (-150, -150)
+                const bgX = (posIndex % 2) * -150;
+                const bgY = Math.floor(posIndex / 2) * -150;
+                div.style.backgroundPosition = `${bgX}px ${bgY}px`;
+
+                // 记录这块图的真实ID
+                div.dataset.id = posIndex;
+
+                // 点击事件
+                div.onclick = () => handlePieceClick(div);
+
+                board.appendChild(div);
+            });
+        }
+
+        // 检查是否拼好了
+        function isSolved(currentArr) {
+            // 如果传入了数组，检查数组；否则检查 DOM
+            if (currentArr) {
+                return currentArr[0] === 0 && currentArr[1] === 1 && currentArr[2] === 2 && currentArr[3] === 3;
+            }
+
+            const nodes = board.children;
+            for (let i = 0; i < 4; i++) {
+                if (parseInt(nodes[i].dataset.id) !== i) return false;
+            }
+            return true;
+        }
+
+        // 点击交互逻辑 (互换模式)
+        function handlePieceClick(clickedElement) {
+            if (isAnimating) return;
+
+            // 播放点击音效
+            playClickSound();
+
+            if (!selectedPiece) {
+                // 第一次点击：选中
+                selectedPiece = clickedElement;
+                clickedElement.classList.add('selected');
+            } else {
+                // 第二次点击
+                if (selectedPiece === clickedElement) {
+                    // 点了自己：取消选中
+                    selectedPiece.classList.remove('selected');
+                    selectedPiece = null;
+                } else {
+                    // 点了别人：交换！
+                    swapElements(selectedPiece, clickedElement);
+                    selectedPiece.classList.remove('selected');
+                    selectedPiece = null;
+                }
+            }
+        }
+
+        function swapElements(el1, el2) {
+            isAnimating = true;
+
+            // 视觉上交换内容 (因为 grid 布局由 DOM 顺序决定，我们只需交换 DOM 节点)
+            // 为了有动画效果，这里简化处理：直接交换 DOM
+            // 如果要做滑块动画比较复杂，对于3岁孩子，直接变过去也可以接受
+
+            const parent = board;
+            const temp = document.createElement("div"); // 占位符
+
+            parent.insertBefore(temp, el1);
+            parent.insertBefore(el1, el2);
+            parent.insertBefore(el2, temp);
+            parent.removeChild(temp);
+
+            speak("变！"); // 交互音效
+
+            setTimeout(() => {
+                isAnimating = false;
+                if (isSolved()) {
+                    handleWin();
+                }
+            }, 300);
+        }
+
+        function handleWin() {
+            playWinSound();
+            speak("哇！拼对啦！你真棒！");
+            document.getElementById('success-overlay').style.display = 'flex';
+            fireConfetti();
+        }
+
+        function nextLevel() {
+            currentLevelIndex++;
+            initLevel(currentLevelIndex);
+        }
+
+        // 简单的音效
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playClickSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playWinSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            // 简单的琶音
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+        }
+
+        // 烟花
+        function fireConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const c = document.createElement('div');
+                c.innerText = ['🎉', '⭐', '✨'][Math.floor(Math.random() * 3)];
+                c.style.position = 'fixed';
+                c.style.left = '50%'; c.style.top = '50%';
+                c.style.fontSize = Math.random() * 20 + 20 + 'px';
+                c.style.transition = 'all 1s ease-out';
+                c.style.zIndex = '200';
+                document.body.appendChild(c);
+                requestAnimationFrame(() => {
+                    c.style.transform = `translate(${(Math.random() - 0.5) * window.innerWidth}px, ${(Math.random() - 0.5) * window.innerHeight}px) rotate(${Math.random() * 360}deg)`;
+                    c.style.opacity = 0;
+                });
+                setTimeout(() => c.remove(), 1000);
+            }
+        }
+
+        // 启动
+        initLevel(0);
+
+    </script>
+</body>
+
+</html>

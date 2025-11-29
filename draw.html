@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>创意涂鸦板</title>
+    <style>
+        :root {
+            --bg-color: #f0f3f8;
+            --panel-color: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            /* 禁止页面滚动 */
+            touch-action: none;
+            /* 禁止系统默认的手势 */
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .header {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #8A7BFF;
+            color: white;
+            z-index: 10;
+        }
+
+        .back-btn,
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 画布区域 */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: white;
+            cursor: crosshair;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+
+        /* 底部工具栏 */
+        .toolbar {
+            padding: 15px;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        /* 颜色选择器 */
+        .color-options {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 5px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .color-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, border-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .color-btn.active {
+            transform: scale(1.1);
+            border-color: #333;
+        }
+
+        /* 橡皮擦和粗细控制 */
+        .tool-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            border: none;
+            background: #f0f0f0;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .tool-btn.active {
+            background: #8A7BFF;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <button class="back-btn" onclick="history.back()">🏠</button>
+        <span style="font-weight: bold; font-size: 1.1rem;">小小画家</span>
+        <div class="action-group">
+            <button class="action-btn" onclick="clearCanvas()" title="清空">🗑️</button>
+            <button class="action-btn" onclick="saveImage()" title="保存">📷</button>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="drawing-board"></canvas>
+    </div>
+
+    <div class="toolbar">
+        <!-- 橡皮擦 -->
+        <button class="tool-btn" id="eraser" onclick="setEraser()">🧽</button>
+
+        <!-- 颜色条 -->
+        <div class="color-options" id="color-palette">
+            <!-- JS 动态生成颜色 -->
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 语音模块 (复用之前的逻辑) ---
+        const synth = window.speechSynthesis;
+        let preferredVoice = null;
+
+        function loadVoices() {
+            const allVoices = synth.getVoices();
+            let mandarinVoices = allVoices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'zh-cn');
+            if (mandarinVoices.length === 0) mandarinVoices = allVoices.filter(v => v.lang.includes('zh'));
+
+            preferredVoice = mandarinVoices.find(v => v.name.includes('Google') && v.name.includes('Chinese')) ||
+                mandarinVoices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural')) ||
+                mandarinVoices.find(v => v.name.includes('Ting-Ting')) ||
+                mandarinVoices[0];
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utterThis = new SpeechSynthesisUtterance(text);
+            utterThis.lang = 'zh-CN';
+            if (preferredVoice) utterThis.voice = preferredVoice;
+            utterThis.pitch = 1.1;
+            utterThis.rate = 1.0;
+            synth.speak(utterThis);
+        }
+
+        // --- 2. 画布设置 ---
+        const canvas = document.getElementById('drawing-board');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // 颜色配置
+        const colors = [
+            { code: '#FF0000', name: '红色' },
+            { code: '#FFA500', name: '橙色' },
+            { code: '#FFFF00', name: '黄色' },
+            { code: '#008000', name: '绿色' },
+            { code: '#00BFFF', name: '蓝色' },
+            { code: '#800080', name: '紫色' },
+            { code: '#FFC0CB', name: '粉色' },
+            { code: '#000000', name: '黑色' },
+            { code: '#8B4513', name: '棕色' }
+        ];
+
+        let painting = false;
+        let brushSize = 10; // 默认笔触大小，适合小孩
+        let currentColor = '#FF0000';
+        let isEraser = false;
+
+        // 初始化画布尺寸 (处理高清屏模糊问题)
+        function resizeCanvas() {
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+
+            // 设置画布的显示尺寸
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+
+            // 设置画布的实际像素尺寸 (Retina屏优化)
+            const scale = window.devicePixelRatio || 1;
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+
+            ctx.scale(scale, scale);
+
+            // 每次重置尺寸后，需要重新设置画笔样式
+            updateBrushStyle();
+        }
+
+        function updateBrushStyle() {
+            ctx.lineCap = 'round'; // 圆头笔触
+            ctx.lineJoin = 'round'; // 转角圆滑
+            ctx.lineWidth = brushSize;
+            ctx.strokeStyle = isEraser ? '#ffffff' : currentColor;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        // 初始延迟调用，确保布局加载完毕
+        setTimeout(resizeCanvas, 100);
+
+        // --- 3. 绘画逻辑 (同时支持鼠标和触摸) ---
+        function startPosition(e) {
+            painting = true;
+            draw(e); // 点击即画一个点
+        }
+
+        function endPosition() {
+            painting = false;
+            ctx.beginPath(); // 结束路径，防止连线
+        }
+
+        function draw(e) {
+            if (!painting) return;
+
+            // 获取坐标
+            let clientX, clientY;
+            if (e.type.includes('touch')) {
+                // 触摸事件
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                // 鼠标事件
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // 转换相对坐标
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // 事件监听
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseleave', endPosition); // 移出画布停止
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 禁止滚动
+            startPosition(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // 禁止滚动
+            draw(e);
+        }, { passive: false });
+
+        // --- 4. 工具栏逻辑 ---
+
+        // 初始化颜色盘
+        const palette = document.getElementById('color-palette');
+        colors.forEach((c, index) => {
+            const btn = document.createElement('div');
+            btn.className = 'color-btn';
+            btn.style.backgroundColor = c.code;
+            if (index === 0) btn.classList.add('active'); // 默认选中第一个
+
+            btn.onclick = () => {
+                selectColor(c.code, c.name, btn);
+            };
+            palette.appendChild(btn);
+        });
+
+        function selectColor(color, name, btn) {
+            isEraser = false;
+            currentColor = color;
+            updateBrushStyle();
+            speak(name); // 播放语音：“红色”
+
+            // UI 更新
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('eraser').classList.remove('active');
+        }
+
+        function setEraser() {
+            isEraser = true;
+            updateBrushStyle();
+            speak("橡皮擦");
+
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('eraser').classList.add('active');
+        }
+
+        function clearCanvas() {
+            // 这里的 canvas.width/scale 是因为我们上面做了 Retina 缩放
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            speak("重新画");
+        }
+
+        function saveImage() {
+            speak("保存好啦");
+            // 创建一个白色背景的临时 Canvas (防止透明背景存成黑色)
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+
+            // 填充白色背景
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            // 把画的内容盖上去
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // 下载
+            const link = document.createElement('a');
+            link.download = '我的画作-' + Date.now() + '.png';
+            link.href = tempCanvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+
+</html>
