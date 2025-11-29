@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>极速光轮 - 陀螺仪赛车</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: none;
+        }
+
+        /* UI 层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: auto;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        /* 速度仪表盘 */
+        .hud-center {
+            text-align: center;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .speed-val {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+
+        .speed-label {
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+        }
+
+        /* 开始/权限遮罩 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 20;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            color: #fff;
+            font-style: italic;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #ff00cc, #3333ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #ff00cc, #3333ff);
+            border: none;
+            padding: 15px 50px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            margin-top: 20px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(51, 51, 255, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+
+        .tip {
+            color: #aaa;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            max-width: 80%;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(51, 51, 255, 0.5);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 40px rgba(51, 51, 255, 0.8);
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(51, 51, 255, 0.5);
+            }
+        }
+
+        /* 移动端触摸控制 (兜底) */
+        .touch-controls {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: auto;
+            z-index: 5;
+        }
+
+        .touch-left,
+        .touch-right {
+            flex: 1;
+        }
+    </style>
+
+    <!-- Three.js 核心 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 后处理特效库 (实现光晕 Bloom) -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+</head>
+
+<body>
+
+    <div id="start-screen">
+        <h1>极速光轮</h1>
+        <p style="color:white">Motorcycle Racing</p>
+        <button class="start-btn" onclick="startGame()">启动引擎</button>
+        <p class="tip">📱 手机玩家：左右倾斜手机来转弯 (需要授权)<br>💻 电脑玩家：使用左右方向键</p>
+    </div>
+
+    <div id="ui-layer">
+        <div class="header">
+            <button class="back-btn" onclick="history.back()">🏠</button>
+        </div>
+        <div class="hud-center" style="margin-top: 50px;">
+            <div class="speed-val" id="score">0</div>
+            <div class="speed-label">KM/H</div>
+        </div>
+        <div style="flex:1"></div>
+    </div>
+
+    <!-- 左右触摸区域 (备用方案) -->
+    <div class="touch-controls">
+        <div class="touch-left" id="btn-left"></div>
+        <div class="touch-right" id="btn-right"></div>
+    </div>
+
+    <div id="game-container"></div>
+
+    <script>
+        // ================= 配置参数 =================
+        const CONFIG = {
+            speed: 0.8,         // 基础速度
+            roadWidth: 20,      // 赛道宽度
+            color: 0x00ffff,    // 霓虹蓝
+            color2: 0xff00cc    // 霓虹粉
+        };
+
+        // ================= 核心变量 =================
+        let scene, camera, renderer, composer;
+        let bike, roadGrid, particles;
+        let obstacles = [];
+        let gameActive = false;
+        let score = 0;
+        let frameId;
+
+        // 操控变量
+        let bikeX = 0;
+        let targetTilt = 0;
+        let currentTilt = 0;
+
+        // 音效引擎
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let engineOsc;
+
+        function init() {
+            const container = document.getElementById('game-container');
+
+            // 1. 场景
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.03); // 黑色迷雾，增加深邃感
+
+            // 2. 相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 3, 6);
+            camera.lookAt(0, 0, -10);
+
+            // 3. 渲染器 (开启阴影和抗锯齿)
+            renderer = new THREE.WebGLRenderer({ antialias: false }); // 后处理开启时建议关闭自带抗锯齿以提升性能
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比，防卡顿
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            container.appendChild(renderer.domElement);
+
+            // 4. 灯光 (模拟真实光照)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(ambientLight);
+
+            // 摩托车头灯 (实时光源)
+            const spotLight = new THREE.SpotLight(0xffffff, 20);
+            spotLight.position.set(0, 5, 0);
+            spotLight.angle = 0.6;
+            spotLight.penumbra = 0.5;
+            spotLight.castShadow = true;
+            scene.add(spotLight);
+
+            // 5. 后处理 (Bloom 辉光 - 模拟光追效果的核心)
+            const renderScene = new THREE.RenderPass(scene, camera);
+
+            // UnrealBloomPass 参数: 分辨率, 强度, 半径, 阈值
+            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = 0;
+            bloomPass.strength = 1.2; // 辉光强度
+            bloomPass.radius = 0.5;
+
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            // 6. 创建物体
+            createRoad();
+            createBike();
+            createEnvironment();
+
+            // 7. 监听
+            window.addEventListener('resize', onWindowResize, false);
+            setupControls();
+        }
+
+        // --- 物体构建 ---
+
+        function createRoad() {
+            // 使用网格辅助线模拟赛博朋克路面
+            const gridHelper = new THREE.GridHelper(200, 200, CONFIG.color2, 0x222222);
+            gridHelper.position.y = -1;
+            gridHelper.position.z = -50;
+            gridHelper.scale.z = 5; // 拉长产生速度感
+            scene.add(gridHelper);
+            roadGrid = gridHelper;
+        }
+
+        function createBike() {
+            bike = new THREE.Group();
+
+            // 车身 (发光材质)
+            const bodyGeo = new THREE.BoxGeometry(0.8, 0.5, 2);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+
+            // 霓虹灯条
+            const neonGeo = new THREE.BoxGeometry(0.82, 0.1, 2.05);
+            const neonMat = new THREE.MeshBasicMaterial({ color: CONFIG.color }); // Basic材质不受光照影响，自带发光感
+            const neon = new THREE.Mesh(neonGeo, neonMat);
+            neon.position.y = 0.2;
+
+            // 后轮 (发光环)
+            const wheelGeo = new THREE.TorusGeometry(0.4, 0.1, 16, 32);
+            const wheelMat = new THREE.MeshBasicMaterial({ color: CONFIG.color2 });
+            const wheelBack = new THREE.Mesh(wheelGeo, wheelMat);
+            wheelBack.position.set(0, -0.2, 0.8);
+
+            // 尾焰粒子
+            const trailGeo = new THREE.BufferGeometry();
+            const trailMat = new THREE.PointsMaterial({ color: CONFIG.color, size: 0.1 });
+            // ...简化处理，用灯光代替尾焰
+
+            // 摩托车大灯
+            const headlight = new THREE.PointLight(CONFIG.color, 2, 20);
+            headlight.position.set(0, 0.5, -1.5);
+            bike.add(headlight);
+
+            bike.add(body);
+            bike.add(neon);
+            bike.add(wheelBack);
+
+            bike.position.y = -0.5;
+            bike.position.z = 2;
+            scene.add(bike);
+        }
+
+        function createEnvironment() {
+            // 星空粒子
+            const starsGeo = new THREE.BufferGeometry();
+            const starsCount = 1000;
+            const posArray = new Float32Array(starsCount * 3);
+
+            for (let i = 0; i < starsCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 100;
+            }
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const starsMat = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff });
+            const starMesh = new THREE.Points(starsGeo, starsMat);
+            scene.add(starMesh);
+            particles = starMesh;
+
+            // 远处的赛博建筑 (简单的发光柱子)
+            for (let i = 0; i < 20; i++) {
+                const h = Math.random() * 10 + 5;
+                const geo = new THREE.BoxGeometry(2, h, 2);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x0a0a2a });
+                // 边缘发光
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x3333ff }));
+
+                const building = new THREE.Group();
+                building.add(new THREE.Mesh(geo, mat));
+                building.add(line);
+
+                building.position.set((Math.random() - 0.5) * 80, h / 2 - 10, -Math.random() * 100 - 20);
+                if (Math.abs(building.position.x) < 15) building.position.x += 20; // 避开赛道
+
+                scene.add(building);
+            }
+        }
+
+        function createObstacle() {
+            // 随机生成障碍物
+            const type = Math.random() > 0.5 ? 'box' : 'cone';
+            let mesh;
+
+            if (type === 'box') {
+                const geo = new THREE.BoxGeometry(1, 1, 1);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000 });
+                mesh = new THREE.Mesh(geo, mat);
+            } else {
+                const geo = new THREE.ConeGeometry(0.5, 1.5, 16);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0x552200 });
+                mesh = new THREE.Mesh(geo, mat);
+            }
+
+            // 随机赛道位置 (-8 到 8)
+            mesh.position.set((Math.random() - 0.5) * 16, -0.5, -60);
+            scene.add(mesh);
+            obstacles.push(mesh);
+        }
+
+        // --- 游戏逻辑 ---
+
+        function update() {
+            if (!gameActive) return;
+
+            // 1. 摩托车控制平滑移动
+            // 使用 Lerp 插值让移动看起来有物理惯性
+            bike.position.x += (bikeX - bike.position.x) * 0.1;
+
+            // 倾斜车身效果 (根据移动方向)
+            targetTilt = (bikeX - bike.position.x) * -2; // 向左移车身向左倾
+            bike.rotation.z += (targetTilt - bike.rotation.z) * 0.1;
+
+            // 2. 场景移动模拟 (无限路面)
+            roadGrid.position.z += CONFIG.speed;
+            if (roadGrid.position.z > 0) roadGrid.position.z = -50;
+
+            // 3. 粒子飞逝
+            particles.position.z += CONFIG.speed / 2;
+            if (particles.position.z > 20) particles.position.z = 0;
+
+            // 4. 障碍物管理
+            if (Math.random() < 0.02) createObstacle(); // 生成概率
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.position.z += CONFIG.speed;
+
+                // 碰撞检测 (简单的距离检测)
+                const dist = obs.position.distanceTo(bike.position);
+                if (dist < 1.2) {
+                    gameOver();
+                }
+
+                // 清理
+                if (obs.position.z > 10) {
+                    scene.remove(obs);
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    document.getElementById('score').innerText = score;
+                    // 速度随分数增加
+                    if (score % 100 === 0) CONFIG.speed += 0.1;
+                }
+            }
+
+            // 引擎声浪模拟
+            updateEngineSound();
+
+            composer.render();
+            frameId = requestAnimationFrame(update);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 控制输入 ---
+
+        function setupControls() {
+            // 1. 键盘 (PC)
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') bikeX = Math.max(bikeX - 3, -8);
+                if (e.key === 'ArrowRight') bikeX = Math.min(bikeX + 3, 8);
+            });
+
+            // 2. 触摸按钮 (手机兜底)
+            const btnLeft = document.getElementById('btn-left');
+            const btnRight = document.getElementById('btn-right');
+            let moveInterval;
+
+            const startMove = (dir) => {
+                if (moveInterval) clearInterval(moveInterval);
+                moveInterval = setInterval(() => {
+                    bikeX += dir * 0.5;
+                    bikeX = Math.max(Math.min(bikeX, 8), -8);
+                }, 20);
+            };
+            const stopMove = () => clearInterval(moveInterval);
+
+            btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); startMove(-1); });
+            btnLeft.addEventListener('touchend', stopMove);
+            btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); startMove(1); });
+            btnRight.addEventListener('touchend', stopMove);
+
+            // 3. 陀螺仪 (核心)
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+
+        function handleOrientation(event) {
+            if (!gameActive) return;
+            // Gamma 是左右倾斜 (-90 到 90)
+            const tilt = event.gamma;
+
+            if (tilt) {
+                // 映射倾斜角度到赛道位置
+                // 限制在 -30度 到 30度 之间比较好操控
+                let targetX = (tilt / 30) * 8;
+                targetX = Math.max(Math.min(targetX, 8), -8);
+                bikeX = targetX;
+            }
+        }
+
+        // --- 游戏流程 ---
+
+        async function startGame() {
+            // iOS 13+ 权限请求
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    if (permissionState === 'granted') {
+                        // 授权成功
+                    } else {
+                        alert("为了体验体感控制，请允许访问动作与方向权限。");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            document.getElementById('start-screen').style.display = 'none';
+            gameActive = true;
+            score = 0;
+            CONFIG.speed = 0.8;
+            bikeX = 0;
+
+            initAudio(); // 启动引擎声
+            update();
+        }
+
+        function gameOver() {
+            gameActive = false;
+            cancelAnimationFrame(frameId);
+            stopAudio();
+
+            // 简单的撞击特效
+            bike.rotation.x = -Math.PI / 4;
+            bike.position.y = 0.5;
+            renderer.render(scene, camera); // 渲染最后一帧
+
+            setTimeout(() => {
+                alert(`比赛结束！你的时速达到了 ${score} KM/H`);
+                location.reload();
+            }, 500);
+        }
+
+        // --- 简易引擎声合成 (Web Audio API) ---
+        function initAudio() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            engineOsc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            engineOsc.type = 'sawtooth'; // 锯齿波类似引擎声
+            engineOsc.frequency.value = 100;
+            gainNode.gain.value = 0.1;
+
+            engineOsc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            engineOsc.start();
+        }
+
+        function updateEngineSound() {
+            if (engineOsc) {
+                // 频率随速度增加，模拟升档
+                engineOsc.frequency.value = 100 + (score * 2) + (Math.random() * 20);
+            }
+        }
+
+        function stopAudio() {
+            if (engineOsc) {
+                engineOsc.stop();
+                engineOsc = null;
+            }
+        }
+
+        // 启动初始化
+        init();
+
+    </script>
+</body>
+
+</html>
