@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>米阔的游戏世界</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Heiti SC", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            color: #fff;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 300;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            animation: fadeInUp 1s ease 0.3s both;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .game-card:hover::before {
+            left: 100%;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        .game-card:hover .game-icon {
+            animation: spin 0.6s ease;
+        }
+
+        .game-title {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .game-desc {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .play-btn:active {
+            transform: scale(0.98);
+        }
+
+        .badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f1c40f;
+            color: #333;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .coming-soon {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .coming-soon .play-btn {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .coming-soon:hover {
+            transform: none;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            animation: fadeInUp 1s ease 0.6s both;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 米阔的游戏世界</h1>
+            <p>Fangyue's Game World - 快乐学习，快乐成长</p>
+        </div>
+
+        <div class="games-grid">
+            <div class="game-card" onclick="playGame('ball.html')">
+                <div class="badge">热门</div>
+                <div class="game-icon">🎯</div>
+                <div class="game-title">识字大冒险</div>
+                <div class="game-desc">在有趣的物理游戏中学习汉字，挑战高分，解锁技能！</div>
+                <button class="play-btn">开始游戏</button>
+            </div>
+
+            <div class="game-card coming-soon">
+                <div class="badge">即将推出</div>
+                <div class="game-icon">🧮</div>
+                <div class="game-title">数学小天才</div>
+                <div class="game-desc">通过趣味数学游戏，提升计算能力和逻辑思维。</div>
+                <button class="play-btn">敬请期待</button>
+            </div>
+
+            <div class="game-card coming-soon">
+                <div class="badge">即将推出</div>
+                <div class="game-icon">🎨</div>
+                <div class="game-title">创意涂鸦板</div>
+                <div class="game-desc">自由发挥想象力，创作属于你的艺术作品。</div>
+                <button class="play-btn">敬请期待</button>
+            </div>
+
+            <div class="game-card coming-soon">
+                <div class="badge">即将推出</div>
+                <div class="game-icon">🎵</div>
+                <div class="game-title">音乐节奏大师</div>
+                <div class="game-desc">跟随节奏，培养音乐感知力和反应能力。</div>
+                <button class="play-btn">敬请期待</button>
+            </div>
+
+            <div class="game-card coming-soon">
+                <div class="badge">即将推出</div>
+                <div class="game-icon">🧩</div>
+                <div class="game-title">拼图挑战</div>
+                <div class="game-desc">锻炼观察力和空间想象力，完成精美拼图。</div>
+                <button class="play-btn">敬请期待</button>
+            </div>
+
+            <div class="game-card coming-soon">
+                <div class="badge">即将推出</div>
+                <div class="game-icon">📚</div>
+                <div class="game-title">故事王国</div>
+                <div class="game-desc">沉浸式互动故事，培养阅读兴趣和理解能力。</div>
+                <button class="play-btn">敬请期待</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>💝 LI TAO & WANG RONG PRESENTS 💝</p>
+            <p style="margin-top: 10px; font-size: 0.8rem;">为米阔精心打造的学习游戏平台</p>
+        </div>
+    </div>
+
+    <script>
+        function playGame(url) {
+            window.location.href = url;
+        }
+
+        // 添加一些动态效果
+        document.querySelectorAll('.game-card:not(.coming-soon)').forEach(card => {
+            card.addEventListener('click', function () {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 100);
+            });
+        });
+
+        // 阻止即将推出的游戏点击
+        document.querySelectorAll('.game-card.coming-soon').forEach(card => {
+            card.addEventListener('click', function (e) {
+                e.preventDefault();
+                const icon = this.querySelector('.game-icon');
+                icon.style.animation = 'none';
+                setTimeout(() => {
+                    icon.style.animation = 'bounce 2s infinite';
+                }, 10);
+            });
+        });
+    </script>
+</body>
+
+</html>
