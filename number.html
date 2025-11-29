@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数学小天才 - 数一数</title>
+    <style>
+        :root {
+            --primary-color: #8A7BFF;
+            /* 你截图里的紫色 */
+            --bg-color: #C6C0FF;
+            /* 浅紫色背景 */
+            --white: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 顶部导航区 */
+        .header {
+            width: 100%;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            color: white;
+        }
+
+        /* 游戏主显示区 */
+        .game-board {
+            flex: 1;
+            width: 90%;
+            background: var(--white);
+            margin: 10px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 15px;
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 显示的物体（Emoji） */
+        .game-item {
+            font-size: 60px;
+            /* 大图标 */
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* 底部答案区 */
+        .options-container {
+            width: 100%;
+            padding: 20px;
+            padding-bottom: 40px;
+            /* 适配手机底部 */
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        .option-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--white);
+            color: var(--primary-color);
+            font-size: 36px;
+            font-weight: bold;
+            box-shadow: 0 6px 0 #ddd;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .option-btn:active {
+            transform: translateY(6px);
+            box-shadow: none;
+        }
+
+        /* 答对的效果 */
+        .option-btn.correct {
+            background-color: #4CAF50;
+            color: white;
+            box-shadow: 0 6px 0 #2E7D32;
+        }
+
+        /* 答错的效果 */
+        .option-btn.wrong {
+            background-color: #FF5252;
+            color: white;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        /* 简单的烟花粒子容器 */
+        #confetti-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <button class="back-btn" onclick="history.back()">🏠</button>
+        <span style="color:white; font-size: 1.2rem; font-weight:bold">数一数</span>
+        <div style="width:40px"></div> <!-- 占位保持平衡 -->
+    </div>
+
+    <div class="game-board" id="board">
+        <!-- 这里会动态生成苹果、车车等 -->
+    </div>
+
+    <div class="options-container" id="options">
+        <!-- 答案按钮在这里 -->
+    </div>
+
+    <canvas id="confetti-canvas"></canvas>
+    <script>
+        // --- 1. 游戏素材配置 ---
+        const items = ['🍎', '🍌', '🍇', '🐶', '🐱', '🚗', '⭐', '🎈', '🦊', '🐼'];
+        let currentNumber = 0;
+        let isProcessing = false;
+
+        // --- 2. 语音合成模块 (强制普通话版) ---
+        const synth = window.speechSynthesis;
+        let preferredVoice = null;
+
+        // 获取并筛选最佳声音
+        function loadVoices() {
+            const allVoices = synth.getVoices();
+
+            // 【关键步骤】严格筛选 lang 属性包含 'zh-CN' 的声音
+            // 这能排除广东话 (zh-HK) 和 台湾普通话 (zh-TW)
+            let mandarinVoices = allVoices.filter(voice =>
+                voice.lang.replace('_', '-').toLowerCase() === 'zh-cn'
+            );
+
+            // 如果找不到严格的 zh-CN，尝试找任意包含 zh 的（作为兜底，但大概率不需要）
+            if (mandarinVoices.length === 0) {
+                mandarinVoices = allVoices.filter(voice => voice.lang.includes('zh'));
+            }
+
+            if (mandarinVoices.length === 0) {
+                console.log("未找到中文语音包，将使用默认声音");
+                return;
+            }
+
+            // 【优先级排序】
+            // 1. Google 普通话 (Android/Chrome 体验极佳)
+            // 2. 微软 Natural (Windows Edge 极佳)
+            // 3. 苹果 Ting-Ting (iOS 经典中文声)
+            preferredVoice = mandarinVoices.find(v => v.name.includes('Google') && v.name.includes('Chinese')) ||
+                mandarinVoices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural')) ||
+                mandarinVoices.find(v => v.name.includes('Ting-Ting')) ||
+                mandarinVoices.find(v => v.name.includes('Ping-Fang')) ||
+                mandarinVoices[0]; // 实在没有就用列表里第一个普通话
+
+            console.log("已锁定普通话语音:", preferredVoice.name);
+        }
+
+        // 监听语音库加载 (解决部分浏览器异步加载问题)
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel(); // 打断上一句
+
+            const utterThis = new SpeechSynthesisUtterance(text);
+
+            // 【强制设定语言】
+            utterThis.lang = 'zh-CN';
+
+            // 如果找到了选定的普通话声音，就应用它
+            if (preferredVoice) {
+                utterThis.voice = preferredVoice;
+            }
+
+            // 【参数微调】适合儿童的语调
+            utterThis.pitch = 1.1; // 稍微高昂一点，比较有活力
+            utterThis.rate = 0.9; // 语速放慢，让孩子听清楚
+            utterThis.volume = 1;
+
+            synth.speak(utterThis);
+        }
+
+        // --- 3. 游戏核心逻辑 ---
+
+        // 初始化游戏
+        function initGame() {
+            isProcessing = false;
+            const board = document.getElementById('board');
+            const optionsDiv = document.getElementById('options');
+
+            board.innerHTML = '';
+            optionsDiv.innerHTML = '';
+
+            // 难度：随机 1-5 个
+            currentNumber = Math.floor(Math.random() * 5) + 1;
+
+            // 随机物品
+            const randomItem = items[Math.floor(Math.random() * items.length)];
+
+            // 渲染物品到屏幕
+            for (let i = 0; i < currentNumber; i++) {
+                const span = document.createElement('span');
+                span.className = 'game-item';
+                span.textContent = randomItem;
+                span.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
+                board.appendChild(span);
+            }
+
+            // 播报题目 (延迟300ms确保页面渲染完)
+            setTimeout(() => {
+                speak(`数一数，有几个${getEmojiName(randomItem)}？`);
+            }, 300);
+
+            // 生成答案选项 (1真2假)
+            let answers = [currentNumber];
+            while (answers.length < 3) {
+                let wrong = Math.floor(Math.random() * 5) + 1;
+                if (!answers.includes(wrong)) answers.push(wrong);
+            }
+            answers.sort(() => Math.random() - 0.5); // 打乱顺序
+
+            // 渲染底部按钮
+            answers.forEach(num => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = num;
+                btn.onclick = () => checkAnswer(num, btn);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        // 物品中文名映射
+        function getEmojiName(emoji) {
+            const map = {
+                '🍎': '苹果', '🍌': '香蕉', '🍇': '葡萄',
+                '🐶': '小狗', '🐱': '小猫', '🚗': '小汽车',
+                '⭐': '星星', '🎈': '气球', '🦊': '狐狸', '🐼': '熊猫'
+            };
+            return map[emoji] || '东西';
+        }
+
+        // 检查答案
+        function checkAnswer(selectedNum, btnElement) {
+            if (isProcessing) return; // 防止重复点击
+
+            if (selectedNum === currentNumber) {
+                // 答对逻辑
+                isProcessing = true;
+                btnElement.classList.add('correct');
+
+                const praises = ["答对了！真棒！", "哇！你好聪明！", "完全正确！"];
+                const randomPraise = praises[Math.floor(Math.random() * praises.length)];
+                speak(randomPraise);
+
+                fireConfetti(); // 放烟花
+
+                // 2秒后进入下一关
+                setTimeout(() => {
+                    initGame();
+                }, 2000);
+            } else {
+                // 答错逻辑
+                btnElement.classList.add('wrong');
+                speak("不对哦，再试一次"); // 简单直接的鼓励
+                if (navigator.vibrate) navigator.vibrate(200); // 手机震动
+
+                setTimeout(() => {
+                    btnElement.classList.remove('wrong');
+                }, 500);
+            }
+        }
+
+        // 烟花特效 (纯JS实现，无需Canvas库)
+        function fireConfetti() {
+            for (let i = 0; i < 30; i++) {
+                const confetti = document.createElement('div');
+                confetti.innerText = ['🎉', '✨', '🌟'][Math.floor(Math.random() * 3)];
+                confetti.style.position = 'absolute';
+                confetti.style.left = '50%';
+                confetti.style.top = '50%';
+                confetti.style.fontSize = Math.random() * 20 + 10 + 'px';
+                confetti.style.transition = 'all 1s ease-out';
+                confetti.style.zIndex = 1000;
+                confetti.style.pointerEvents = 'none';
+                document.body.appendChild(confetti);
+
+                requestAnimationFrame(() => {
+                    const destX = (Math.random() - 0.5) * window.innerWidth;
+                    const destY = (Math.random() - 0.5) * window.innerHeight;
+                    confetti.style.transform = `translate(${destX}px, ${destY}px) rotate(${Math.random() * 360}deg)`;
+                    confetti.style.opacity = 0;
+                });
+                setTimeout(() => confetti.remove(), 1000);
+            }
+        }
+
+        // 启动游戏
+        initGame();
+    </script>
+</body>
+
+</html>
