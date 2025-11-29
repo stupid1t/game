@@ -11,6 +11,8 @@
     <style>
         body {
             margin: 0;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
             overflow: hidden;
             background-color: #1a1a2e;
             font-family: 'Segoe UI', sans-serif;
@@ -71,6 +73,7 @@
         /* 底部控制栏 */
         .controls {
             padding: 20px;
+            padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
             display: flex;
             justify-content: center;
             gap: 20px;

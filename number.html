@@ -18,6 +18,8 @@
         body {
             margin: 0;
             padding: 0;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
             background-color: var(--bg-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
@@ -91,7 +93,7 @@
         .options-container {
             width: 100%;
             padding: 20px;
-            padding-bottom: 40px;
+            padding-bottom: max(40px, calc(40px + env(safe-area-inset-bottom)));
             /* 适配手机底部 */
             display: flex;
             justify-content: center;

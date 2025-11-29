@@ -17,6 +17,8 @@
         body {
             margin: 0;
             padding: 0;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
             background-color: var(--bg-color);
             font-family: 'Segoe UI', sans-serif;
             display: flex;
@@ -61,6 +63,7 @@
             align-items: center;
             justify-content: center;
             gap: 20px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
         }
 
         /* 目标提示图 (小图) */
