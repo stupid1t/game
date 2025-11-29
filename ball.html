@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>方栎的识字大冒险 - 积分挑战版</title>
+    <title>米阔的识字大冒险 - 积分挑战版</title>
     <!-- 引用国内极速源 -->
     <script src="https://lib.baomitu.com/matter-js/0.19.0/matter.min.js"></script>
     <style>
@@ -479,7 +479,7 @@
                 </div>
 
                 <div id="start-overlay">
-                    <h1 style="color:#f1c40f; margin-bottom:5px;">方栎识字大冒险</h1>
+                    <h1 style="color:#f1c40f; margin-bottom:5px;">米阔识字大冒险</h1>
                     <p style="color:#aaa; font-size:12px;">Fangyue's Word Adventure</p>
                     <button id="start-game-btn"
                         style="margin-top:30px; padding:15px 40px; font-size:22px; background:#2ecc71; border:none; border-radius:30px; color:#fff; font-weight:bold; box-shadow:0 5px 0 #27ae60;">开始挑战</button>
@@ -522,7 +522,7 @@
 
         function initGame() {
             // --- 配置 ---
-            const SKILL_COST = 2000; // 技能消耗
+            const SKILL_COST = 1000; // 技能消耗
             const CHAR_DATA = [
                 { c: '一', p: 'yī' }, { c: '二', p: 'èr' }, { c: '三', p: 'sān' }, { c: '人', p: 'rén' }, { c: '个', p: 'gè' },
                 { c: '大', p: 'dà' }, { c: '山', p: 'shān' }, { c: '上', p: 'shàng' }, { c: '下', p: 'xià' }, { c: '小', p: 'xiǎo' },
@@ -544,7 +544,7 @@
                 { r: 25, color: '#2ecc71', label: '3' }, { r: 30, color: '#9b59b6', label: '4' },
                 { r: 35, color: '#e67e22', label: '5' }, { r: 40, color: '#1abc9c', label: '6' },
                 { r: 50, color: '#ff7979', label: '妈妈' }, { r: 60, color: '#2980b9', label: '爸爸' },
-                { r: 75, color: '#f1c40f', label: '方栎' }, { r: 90, color: '#ecf0f1', label: '全家福' }
+                { r: 75, color: '#f1c40f', label: '米阔' }, { r: 90, color: '#ecf0f1', label: '全家福' }
             ];
 
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -835,7 +835,9 @@
                         const newIdx = bodyA.customIndex + 1;
                         Sound.play(300 + newIdx * 50, 'sine', 0.1);
 
-                        updateScore(newIdx * 10); // 更新分数
+                        // 大球积分翻倍 (索引>=6的球)
+                        const scoreMultiplier = newIdx >= 6 ? 2 : 1;
+                        updateScore(newIdx * 10 * scoreMultiplier); // 更新分数
 
                         const midX = (bodyA.position.x + bodyB.position.x) / 2;
                         const midY = (bodyA.position.y + bodyB.position.y) / 2;
