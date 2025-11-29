@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>米阔的游戏世界</title>
     <style>
         * {
@@ -13,6 +14,9 @@
         }
 
         body {
+            touch-action: manipulation; /* 禁用双击缩放 */
+            user-select: none; /* 禁止选中文本 */
+            -webkit-user-select: none;
             font-family: "Microsoft YaHei", "Heiti SC", sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
