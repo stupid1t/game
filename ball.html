@@ -757,7 +757,7 @@
                 }
                 const options = [target, ...others].sort(() => Math.random() - 0.5);
 
-                document.getElementById('quiz-title').innerText = "请找出:?" ;
+                document.getElementById('quiz-title').innerText = "请找出正确的字" ;
                 const optContainer = document.getElementById('quiz-options');
                 optContainer.innerHTML = '';
 
@@ -779,7 +779,7 @@
                 });
 
                 document.getElementById('quiz-overlay').style.display = 'flex';
-                setTimeout(() => speak("请找出，" + target.c), 500);
+                setTimeout(() => speak("请找出，" + target.c), 1500);
             }
 
             // 喇叭点击事件：重播
